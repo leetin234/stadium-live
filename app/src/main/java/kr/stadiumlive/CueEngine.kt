@@ -9,7 +9,12 @@ data class Prefs(
     val myTeam: String = "W",
     /** 정차하면 몰입 화면으로 전환할지(끄면 정차 중에도 해설 중심 화면). */
     val immersiveOnPark: Boolean = true,
+    /** 실내 조명·송풍 연출(정차 몰입 모드에서만). */
+    val cabinOn: Boolean = true,
 )
+
+/** 차 실내에 보낼 목표값. color는 0xRRGGBB, brightness·fan은 0~1(차량 범위로 환산). */
+data class Cabin(val color: Int, val brightness: Float, val fan: Float, val label: String)
 
 /** 한 번 재생하는 효과음. pan은 -1(왼쪽)~1(오른쪽). */
 data class Shot(val sound: String, val gain: Float, val pan: Float = 0f)
@@ -101,6 +106,38 @@ class CueEngine(private val game: Game) {
     fun flightAt(ms: Long): Float? {
         val hit = game.cues.firstOrNull { it.type == "HIT" && it.t <= ms && ms < it.t + it.flightMs } ?: return null
         return (ms - hit.t).toFloat() / hit.flightMs
+    }
+
+    /**
+     * 실내 조명·송풍 목표값. 주행 중·효과 끔·실내 연출 끔이면 null(원래 상태로 복원).
+     * 긴장: 붉은 조명이 심박마다 밝아졌다 잦아듦 / 타격: 흰 섬광 + 송풍 순간 최대 /
+     * 득점: 득점 팀 색 섬광 / 응원가: 내 팀 색이 응원 박자로 일렁임 / 그 외: 내 팀 색 은은하게.
+     */
+    fun cabin(ms: Long, mode: Mode, p: Prefs, myColor: Int, teamColor: (String) -> Int): Cabin? {
+        if (mode != Mode.PARKED || !p.effectsOn || !p.cabinOn) return null
+        val k = 0.4f + 0.6f * p.intensity.coerceIn(0f, 1f)
+        game.cues.firstOrNull { it.type == "HIT" && ms - it.t in 0..1_500 }?.let { hit ->
+            val dt = (ms - hit.t) / 1500f
+            return Cabin(0xFFFFFF, k * (1f - 0.6f * dt), 1f - 0.5f * dt, "타격 · 섬광과 바람")
+        }
+        game.cues.lastOrNull { it.type == "SCORE" && ms - it.t in 0..2_000 }?.let { sc ->
+            val dt = (ms - sc.t) / 2000f
+            val blink = if (((ms - sc.t) / 250) % 2 == 0L) 1f else 0.55f
+            return Cabin(teamColor(sc.team), k * blink * (1f - 0.3f * dt), 0.35f, "득점 · 팀 색 섬광")
+        }
+        game.cues.firstOrNull { it.type == "CHEER" && it.t <= ms && ms < it.t + it.durationMs }?.let { ch ->
+            val beat = ((ms - ch.t) % 469L) / 469f
+            val color = teamColor(ch.team)
+            return Cabin(color, k * (0.45f + 0.55f * kotlin.math.exp(-beat * 4f)), 0.25f, "응원가 · 박자에 맞춘 조명")
+        }
+        val t = tensionAt(ms)
+        if (t != null) {
+            val last = beats(ms - 2_000, ms).lastOrNull()
+            val pulse = last?.let { kotlin.math.exp(-(ms - it) / 180f) } ?: 0f
+            val base = ((t.bpm - 90) / 45f).coerceIn(0.15f, 0.6f)
+            return Cabin(0xFF2A2A, k * (base + (1f - base) * pulse), 0f, "긴장 · 심박 조명 ${t.bpm}bpm")
+        }
+        return Cabin(myColor, k * 0.3f, 0f, "기본 · 내 팀 색")
     }
 
     /** 마지막 타격 뒤 '딱!' 글자를 보여줄 시간인지. */

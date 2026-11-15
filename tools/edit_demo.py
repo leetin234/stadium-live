@@ -16,6 +16,11 @@ FONT = ROOT / "app" / "src" / "main" / "res" / "font"
 W, H = 1920, 1080
 DEV = (200, 182, 1520, 855)  # 녹화 화면(2560x1440)을 놓을 위치와 크기
 INTRO, OUTRO = 3.0, 3.5
+# 앱 화면의 '차량 실내 연출' 카드(Vehicle SDK 응답값) 위치와 확대 인셋 표시 구간.
+INSET = (900, 1010, 530, 140)
+INSET_K = 0.9
+INSET_XY = (216, 760)
+INSET_T = (36.0, 85.0)
 
 TEAL = (82, 200, 240)
 WHITE = (244, 246, 250)
@@ -125,7 +130,7 @@ def main():
     mask()
     header("h1", "01", "출발 전 준비", "정차 상태", "출발 전 한 번, ", "내 응원 취향", "을 정해요", "응원 팀 · 연출 강도를 정해 두면 출발 후 자동 적용")
     header("h2", "02", "주행 중 청취", "해설 중심 모드", "달리는 동안엔 ", "해설 중심", ", 화면은 최소로", "점수·이닝만 크게 · 몰입 연출 잠금 · 내비 안내와 통화가 오면 중계가 먼저 비켜요")
-    header("h3", "03", "정차 후 몰입", "Park 감지", "멈췄을 때, ", "한 타석의 긴장감", "까지", "숨소리·심박 → 타격 순간 공 비행음 → 득점 함성·응원가로 이어지는 이벤트 연출")
+    header("h3", "03", "정차 후 몰입", "Park 감지", "멈췄을 때, ", "한 타석의 긴장감", "까지", "소리뿐 아니라 실내 앰비언트 조명·공조 송풍까지 경기 흐름에 맞춰 움직여요 (Pleos Vehicle SDK)")
     header("h4", "04", "종료 및 피드백", "정차 상태", "언제든 ", "기본 중계", "로, 듣고 난 뒤엔 짧게 평가", "몰입감 · 해설 명료도 · 음량 변화 불편을 정차 상태에서만 입력")
     callouts = [
         ("c1", "연출 강도 '강'으로 변경", 6.8, 11.5, TEAL),
@@ -133,17 +138,17 @@ def main():
         ("c3", "내비 안내 → 중계·효과 음량만 낮춤(오디오 포커스)", 19.8, 24.6, (245, 184, 61)),
         ("c4", "전화 수신 → 중계·효과 일시정지, 통화 후 자동 재개", 24.8, 33.8, (245, 184, 61)),
         ("c5", "기어 P → 몰입 모드로 자동 전환", 34.2, 39.0, (46, 211, 160)),
-        ("c6", "타석 긴장도에 맞춰 심박 96 → 132bpm · 숨소리", 39.5, 60.6, (240, 66, 79)),
-        ("c7", "타격 '딱!' + 공 비행음이 왼쪽에서 오른쪽으로", 61.0, 64.4, (111, 162, 255)),
-        ("c8", "끝내기 → 함성 · 꽃가루 · 팀 응원가와 관중 불빛 파도", 64.6, 85.0, (232, 118, 60)),
+        ("c6", "심박 96 → 132bpm · 실내 조명이 박자마다 붉게 맥동", 39.5, 60.6, (240, 66, 79)),
+        ("c7", "타격 '딱!' 순간 실내 흰 섬광 + 송풍 최대 → 서서히 잦아듦", 61.0, 64.4, (111, 162, 255)),
+        ("c8", "끝내기 → 팀 색 조명 점멸 · 응원가 박자에 맞춘 조명과 함성", 64.6, 85.0, (232, 118, 60)),
         ("c9", "평가 저장 → 다음 연출 강도 추천에 반영", 92.0, 101.0, TEAL),
     ]
     for name, text, *_ in callouts:
         callout(name, text, _[2])
-    card("intro", [("STADIUM LIVE", 64, "extrabold", WHITE), ("숨소리 · 심박 · 타구 · 함성 · 응원가, 차 안에서 듣는 야구", 28, "medium", SUB),
+    card("intro", [("STADIUM LIVE", 64, "extrabold", WHITE), ("소리 · 조명 · 바람으로 차 안을 야구장으로", 28, "medium", SUB),
                    ("실동작 시연 · Pleos Connect Emulator 2.1.0", 22, "semibold", TEAL)])
     card("outro", [("STADIUM LIVE", 56, "extrabold", WHITE), ("미디어 재생 위치 하나로 효과를 맞추고, 주행·정차와 오디오 포커스에 따라 비켜서는 연출", 26, "medium", SUB),
-                   ("Kotlin · Jetpack Compose · Media3 · CarUxRestrictions · 자체 제작 음원", 21, "semibold", TEAL)])
+                   ("Pleos Vehicle SDK(앰비언트 조명·공조) · Media3 · CarUxRestrictions · 자체 제작 음원", 21, "semibold", TEAL)])
 
     sections = [("h1", 0, 12.2), ("h2", 12.2, 34.2), ("h3", 34.2, 85.6), ("h4", 85.6, 101.5)]
     x, y, w, h = DEV
@@ -151,7 +156,7 @@ def main():
     overlays = [s[0] for s in sections] + [c[0] for c in callouts]
     for o in overlays:
         inputs += ["-loop", "1", "-i", str(WORK / f"{o}.png")]
-    fc = [f"[0:v]scale={w}:{h}:flags=lanczos,format=rgba[dv]", "[2:v]format=gray[m]", "[dv][m]alphamerge[dm]", f"[1:v][dm]overlay={x}:{y}:shortest=1[v0]"]
+    fc = ["[0:v]split[raw0][raw1]", f"[raw0]scale={w}:{h}:flags=lanczos,format=rgba[dv]", "[2:v]format=gray[m]", "[dv][m]alphamerge[dm]", f"[1:v][dm]overlay={x}:{y}:shortest=1[v0]"]
     cur = "v0"
     times = {s[0]: (s[1], s[2]) for s in sections} | {c[0]: (c[2], c[3]) for c in callouts}
     for i, o in enumerate(overlays):
@@ -159,6 +164,10 @@ def main():
         nxt = f"v{i + 1}"
         fc.append(f"[{cur}][{3 + i}:v]overlay=0:0:enable='between(t,{a},{b})'[{nxt}]")
         cur = nxt
+    ia, ib = INSET_T
+    fc.append(f"[raw1]crop={INSET[2]}:{INSET[3]}:{INSET[0]}:{INSET[1]},scale=iw*{INSET_K}:ih*{INSET_K}:flags=lanczos,pad=iw+8:ih+8:4:4:color=0x2ED3A0[ins]")
+    fc.append(f"[{cur}][ins]overlay={INSET_XY[0]}:{INSET_XY[1]}:enable='between(t,{ia},{ib})'[vin]")
+    cur = "vin"
     fc.append(f"[{cur}]format=yuv420p[vout]")
     fc.append("[0:a]loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000[aout]")
     main_mp4 = WORK / "main.mp4"

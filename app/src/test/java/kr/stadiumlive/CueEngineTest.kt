@@ -114,4 +114,27 @@ class CueEngineTest {
         assertTrue(engine.mix(hit.t - 2_000, Mode.PARKED, parked).breathGain > 0f)
         assertEquals(null, engine.mix(cheer.t + cheer.durationMs + 1, Mode.PARKED, parked).chant)
     }
+
+    private val blue = 0x3A7BFF
+    private val teamColor = { id: String -> if (id == "W") blue else 0xFF4D4D }
+
+    @Test fun cabinFollowsTheGame() {
+        val tense = game.cues.first { it.type == "TENSION" && it.bpm > 0 }
+        val beat = engine.beats(tense.t - 1, tense.t + 3_000).first()
+        val onBeat = engine.cabin(beat + 10, Mode.PARKED, parked, blue, teamColor)!!
+        val between = engine.cabin(beat + 300, Mode.PARKED, parked, blue, teamColor)!!
+        assertEquals(0xFF2A2A, onBeat.color)
+        assertTrue(onBeat.brightness > between.brightness) // 심박마다 밝아졌다 잦아든다
+        val hit = engine.cabin(hit.t + 100, Mode.PARKED, parked, blue, teamColor)!!
+        assertEquals(0xFFFFFF, hit.color)
+        assertTrue(hit.fan > 0.9f) // 타격 순간 송풍 최대
+        val score = game.cues.first { it.type == "SCORE" }
+        assertEquals(blue, engine.cabin(score.t + 100, Mode.PARKED, parked, blue, teamColor)!!.color)
+    }
+
+    @Test fun cabinStaysQuietWhileDrivingOrDisabled() {
+        assertEquals(null, engine.cabin(hit.t + 100, Mode.DRIVING, parked, blue, teamColor))
+        assertEquals(null, engine.cabin(hit.t + 100, Mode.PARKED, parked.copy(cabinOn = false), blue, teamColor))
+        assertEquals(null, engine.cabin(hit.t + 100, Mode.PARKED, parked.copy(effectsOn = false), blue, teamColor))
+    }
 }

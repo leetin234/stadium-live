@@ -272,6 +272,8 @@ private fun Setup(game: Game, ui: UiState, act: Actions) {
                     ToggleRow("주행 중 · 해설 중심", "효과 약하게 · 점수와 이닝만 표시", true, false) {}
                     Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
                     ToggleRow("정차 시 · 몰입 모드 제안", "정차 확인 후 강한 연출 · 상세 화면", p.immersiveOnPark, parked) { p = p.copy(immersiveOnPark = it) }
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
+                    ToggleRow("실내 조명 · 송풍 연출", "심박·타격·득점에 맞춰 앰비언트 조명과 바람이 움직여요", p.cabinOn, parked) { p = p.copy(cabinOn = it) }
                 }
             }
         }
@@ -585,6 +587,44 @@ private fun BatterCard(engine: CueEngine, b: Board, ms: Long, s: SceneInput, mod
     }
 }
 
+/** 차량 실내 연출 상태: 차량이 '설정 완료'로 응답한 앰비언트 조명 색·밝기와 송풍 세기. */
+@Composable
+private fun CabinRow(c: CabinState, enabled: Boolean) {
+    val color = Color(0xFF000000 or c.color.toLong())
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color(0xFF10141C)).padding(14.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("차량 실내 연출", fontSize = 15.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            Text(
+                when { !enabled -> "꺼짐"; !c.ready -> "연결 중"; c.light || c.fan -> "Vehicle SDK 반영"; else -> c.note },
+                fontSize = 12.sp, color = if (enabled && (c.light || c.fan)) Mint else TextLo, fontWeight = FontWeight.Bold,
+            )
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            // 실내 조명 색 견본(차량 응답값).
+            Canvas(Modifier.size(34.dp)) {
+                if (c.light && enabled) drawCircle(Brush.radialGradient(listOf(color, color.copy(alpha = 0f))), radius = size.minDimension * 0.75f)
+                drawCircle(if (c.light && enabled) color else Line, radius = size.minDimension * 0.32f)
+            }
+            Column(Modifier.padding(start = 10.dp).weight(1f)) {
+                Text("앰비언트 조명", fontSize = 12.sp, color = TextLo)
+                Text(if (c.light && enabled) "#%06X · 밝기 %d/%d".format(c.color and 0xFFFFFF, c.brightness, c.brightnessMax) else "—", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text("송풍", fontSize = 12.sp, color = TextLo)
+                Row(verticalAlignment = Alignment.Bottom) {
+                    val max = maxOf(c.fanMax, 1)
+                    for (i in 1..max) Box(Modifier.padding(horizontal = 1.dp).size(5.dp, (6 + i * 2).dp).clip(RoundedCornerShape(2.dp)).background(if (enabled && i <= c.fanLevel) Blue else Line))
+                }
+            }
+        }
+        if (enabled && c.label.isNotEmpty()) {
+            Spacer(Modifier.height(6.dp))
+            Text(c.label, fontSize = 12.sp, color = TextMid)
+        }
+    }
+}
+
 /** 지금 울리는 연출 레이어(중계 시각 기준 계산). 동기화 엔진이 실제로 내는 소리를 그대로 보여 준다. */
 @Composable
 private fun MixerCard(engine: CueEngine, ui: UiState, s: SceneInput, modifier: Modifier) {
@@ -606,9 +646,11 @@ private fun MixerCard(engine: CueEngine, ui: UiState, s: SceneInput, modifier: M
             Spacer(Modifier.weight(1f))
             Text(if (on) "중계 위치에 맞춰 자동 믹싱" else "효과 꺼짐 · 기본 중계", fontSize = 13.sp, color = TextLo)
         }
+        Spacer(Modifier.height(10.dp))
+        CabinRow(ui.cabin, ui.prefs.cabinOn && on)
         Spacer(Modifier.weight(1f))
         rows.forEach { (name, color, level) ->
-            Row(Modifier.padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(name, fontSize = 15.sp, color = if (level > 0.05f) TextHi else TextLo, modifier = Modifier.width(120.dp))
                 Canvas(Modifier.weight(1f).height(12.dp)) {
                     drawRoundRect(Line, cornerRadius = CornerRadius(size.height / 2))

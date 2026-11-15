@@ -23,11 +23,13 @@ class UiState {
     var prefs by mutableStateOf(Prefs())
     var screen by mutableStateOf(Screen.SETUP)
     var feedbackSaved by mutableStateOf(false)
+    var cabin by mutableStateOf(CabinState())
 }
 
 class MainActivity : ComponentActivity() {
     private lateinit var director: AudioDirector
     private lateinit var driving: DrivingState
+    private lateinit var cabin: CabinFx
     private val ui = UiState()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -40,10 +42,18 @@ class MainActivity : ComponentActivity() {
             intensity = store.getFloat("intensity", 0.7f),
             myTeam = store.getString("myTeam", "W") ?: "W",
             immersiveOnPark = store.getBoolean("immersiveOnPark", true),
+            cabinOn = store.getBoolean("cabinOn", true),
         )
+        cabin = CabinFx(this) { ui.cabin = it }
+        val engine = CueEngine(game)
+        val colorOf = { id: String -> (game.team(id).color and 0xFFFFFF).toInt() }
         director = AudioDirector(this, game).apply {
             prefs = ui.prefs
-            onTick = { p, playing -> ui.position = p; ui.playing = playing }
+            onTick = { p, playing ->
+                ui.position = p; ui.playing = playing
+                // 실내 연출: 재생 중·정차 몰입 모드에서만, 그 외에는 원래 상태로 복원.
+                cabin.apply(if (playing && ui.prefs.immersiveOnPark) engine.cabin(p, ui.mode, ui.prefs, colorOf(ui.prefs.myTeam), colorOf) else null)
+            }
             onFocus = { ui.focus = it }
             onSimulation = { ui.simulation = it }
             onEnded = { ui.screen = Screen.FEEDBACK; ui.feedbackSaved = false }
@@ -61,7 +71,7 @@ class MainActivity : ComponentActivity() {
                 ui.prefs = p
                 director.prefs = p
                 store.edit().putBoolean("effectsOn", p.effectsOn).putFloat("intensity", p.intensity)
-                    .putString("myTeam", p.myTeam).putBoolean("immersiveOnPark", p.immersiveOnPark).apply()
+                    .putString("myTeam", p.myTeam).putBoolean("immersiveOnPark", p.immersiveOnPark).putBoolean("cabinOn", p.cabinOn).apply()
             },
             start = { ui.screen = Screen.PLAYER; director.seekTo(0); director.play() },
             toggle = { if (ui.playing) director.pause() else director.play() },
@@ -112,6 +122,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         driving.close()
+        cabin.release()
         director.release()
         super.onDestroy()
     }

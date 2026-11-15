@@ -1,0 +1,16 @@
+[17:45:04] record start
+[17:45:11] tap '강' #1 at 2461 272
+[17:45:15] tap '설정 저장 · 출발 시 자동 적용' #1 at 2259 1236
+[17:45:15] playback start
+[17:45:18] drive
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[17:45:23] nav prompt
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[17:45:28] incoming call
+[17:45:37] park
+[17:46:33] tap '★' #5 at 2155 592
+[17:46:36] tap '★' #9 at 2090 686
+[17:46:39] tap '★' #15 at 2155 780
+[17:46:42] tap '평가 보내기' #1 at 1694 892
+[17:46:45] record stop
+-rw-r--r--@ 1 itaein  staff  168998104 Nov 15 17:46 demo/raw.webm
