@@ -182,7 +182,14 @@ def main():
     video_off, audio_off, *_ = measure(DEMO / "raw.webm")
     delay = max(0, round((video_off - audio_off) * 1000))
     print(f"audio delay {delay}ms")
-    fc.append(f"[0:a]adelay={delay}:all=1,loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000[aout]")
+    # 녹화 소리의 시각 공백은 무음으로 채워 끊김 없는 소리로 만든다(재생기마다 공백 처리가 달라 중간부터 소리가 밀리거나 끊긴다).
+    # 주행 구간은 해설만 나와 정차 몰입 구간보다 20dB 이상 작다. 시연에서 들리도록 이 구간만 약 +10dB 올린다.
+    rlog = (DEMO / "record.log").read_text()
+    rclock = lambda tag: sum(int(x) * k for x, k in zip(re.search(rf"\[(\d+):(\d+):(\d+)\] {tag}", rlog).groups(), (3600, 60, 1)))
+    d0, d1 = rclock("playback start") - rclock("record start"), rclock("park") - rclock("record start") + 1.0
+    boost = f"volume='1+2.2*clip((t-{d0 - 1:.1f})/0.8,0,1)*clip(({d1:.1f}-t)/1.5,0,1)':eval=frame"
+    print(f"drive boost {d0 - 1:.1f}~{d1:.1f}s")
+    fc.append(f"[0:a]aresample=async=1:first_pts=0,adelay={delay}:all=1,{boost},loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000[aout]")
     main_mp4 = WORK / "main.mp4"
     run(["ffmpeg", "-v", "error", "-y", *inputs, "-filter_complex", ";".join(fc), "-map", "[vout]", "-map", "[aout]",
          "-r", "30", "-c:v", "libx264", "-preset", "medium", "-crf", "19", "-c:a", "aac", "-b:a", "192k", "-t", "101", str(main_mp4)])
@@ -204,7 +211,7 @@ def main():
           f"[3:a]atrim={BGM_RANGE[0]}:{BGM_RANGE[1]},asetpts=PTS-STARTPTS,aresample=48000,aformat=channel_layouts=stereo,loudnorm=I=-18:TP=-2,volume={BGM_GAIN},asplit[m1][m2]",
           f"[m1]atrim=0:{a_end:.2f},afade=t=in:d=0.8,afade=t=out:st={a_end - 2.2:.2f}:d=2.2[ba]",
           f"[m2]atrim=0:{b_len:.2f},afade=t=in:d=2.5,afade=t=out:st={b_len - 2.5:.2f}:d=2.5,adelay={round(b_start * 1000)}:all=1[bb]",
-          "[a0][ba][bb]amix=inputs=3:normalize=0:duration=first,alimiter=limit=0.95[a]"]
+          "[a0][ba][bb]amix=inputs=3:normalize=0:duration=first,alimiter=limit=0.95,aresample=async=1:first_pts=0[a]"]
     run(["ffmpeg", "-v", "error", "-y", "-i", str(WORK / "intro.mp4"), "-i", str(main_mp4), "-i", str(WORK / "outro.mp4"), "-i", str(BGM_SRC),
          "-filter_complex", ";".join(fc), "-map", "[v]", "-map", "[a]",
          "-c:v", "libx264", "-preset", "medium", "-crf", "19", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(out)])

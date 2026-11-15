@@ -14,7 +14,8 @@ ROOT = Path(__file__).resolve().parent.parent
 FS = 4000
 
 def pcm(path, *args):
-    out = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), *args, "-ac", "1", "-ar", str(FS), "-f", "s16le", "-"], capture_output=True, check=True).stdout
+    # 녹화본 소리에는 시각이 비는 구간이 있다. 시각대로 무음을 채워 화면과 같은 시간축으로 읽는다.
+    out = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), *args, "-af", "aresample=async=1:first_pts=0", "-ac", "1", "-ar", str(FS), "-f", "s16le", "-"], capture_output=True, check=True).stdout
     return np.frombuffer(out, np.int16).astype(float)
 
 def measure(raw, after=45.0):
