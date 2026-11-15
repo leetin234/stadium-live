@@ -102,11 +102,11 @@ fun StadiumView(modifier: Modifier, s: SceneInput, idle: State<Long>) {
 
         drawImage(img, dstOffset = IntOffset(dx.toInt(), dy.toInt()), dstSize = IntSize((Field.W * sc).toInt(), (Field.H * sc).toInt()))
         // Quiet the stands so runners and the ball remain the visual focus.
-        drawRect(Brush.verticalGradient(listOf(Color(0xFF08121E).copy(alpha = 0.42f), Color.Transparent, Color(0xFF070C14).copy(alpha = 0.25f))))
+        drawRect(Brush.verticalGradient(listOf(Color(0xFF08121E).copy(alpha = 0.12f), Color.Transparent, Color(0xFF070C14).copy(alpha = 0.25f))))
         val now = idle.value / 1000f
 
         // 조명이 아주 느리게 숨 쉬듯.
-        listOf(270f to 30f, 590f to -20f, 1010f to -20f, 1330f to 30f).forEachIndexed { i, (x, y) ->
+        listOf(270f to 106f, 490f to 36f, 1110f to 36f, 1330f to 106f).forEachIndexed { i, (x, y) ->
             val c = p(Offset(x, y))
             val a = 0.05f + 0.025f * sin(now * 1.3f + i)
             drawCircle(Brush.radialGradient(listOf(Color.White.copy(alpha = a), Color.Transparent), center = c, radius = len(220f)), len(220f), c, blendMode = BlendMode.Plus)
@@ -172,7 +172,13 @@ fun StadiumView(modifier: Modifier, s: SceneInput, idle: State<Long>) {
             val ball = p(Field.ball(fp))
             val r = len(16f + 12f * height)
             drawCircle(Brush.radialGradient(listOf(Color.White.copy(alpha = 0.55f), Color.Transparent), center = ball, radius = r * 2.4f), r * 2.4f, ball)
-            drawCircle(Color.White, r, ball)
+            drawCircle(Brush.radialGradient(
+                listOf(Color.White, Color(0xFFE2EAF0), Color(0xFF8B9FAE)),
+                center = ball - Offset(r * 0.3f, r * 0.35f), radius = r * 1.6f,
+            ), r, ball)
+            drawArc(Color(0xFFBA5461).copy(alpha = 0.8f), -65f, 130f, false,
+                topLeft = ball - Offset(r * 1.1f, r * 0.7f),
+                size = Size(r * 1.2f, r * 1.4f), style = Stroke(len(1.8f)))
             if (s.flight == null) drawCircle(Color.White.copy(alpha = 0.45f), len(26f), p(Field.landing), style = Stroke(len(3f)))
         }
 
@@ -194,9 +200,11 @@ fun StadiumView(modifier: Modifier, s: SceneInput, idle: State<Long>) {
 }
 
 private fun DrawScope.dot(c: Offset, r: Float, color: Color) {
-    drawCircle(Color.Black.copy(alpha = 0.35f), r * 1.25f, c + Offset(0f, r * 0.25f))
-    drawCircle(Color.White, r, c)
-    drawCircle(color, r * 0.72f, c)
+    drawCircle(Brush.radialGradient(listOf(color.copy(alpha = 0.32f), Color.Transparent), center = c, radius = r * 2.8f), r * 2.8f, c)
+    drawOval(Color.Black.copy(alpha = 0.5f), c + Offset(-r, r * 0.55f), Size(r * 2.3f, r * 0.9f))
+    drawCircle(Color(0xFFE9F3FA), r, c)
+    drawCircle(Brush.radialGradient(listOf(color.lighten(0.3f), color.darken(0.25f)), center = c - Offset(r * 0.3f, r * 0.3f), radius = r * 1.6f), r * 0.8f, c)
+    drawCircle(Color.White.copy(alpha = 0.65f), r * 0.18f, c - Offset(r * 0.25f, r * 0.3f))
 }
 
 fun DrawScope.confetti(seed: Long, dt: Long, team: Color) {

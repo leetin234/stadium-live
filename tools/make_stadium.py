@@ -1,129 +1,152 @@
-"""정차 몰입 화면의 경기장 배경(1600x1000)을 그린다.
+"""Deterministic night stadium render. Matches Visuals.kt Field coordinates exactly.
 
-좌표계는 앱의 StadiumGeometry와 같다. 홈플레이트(800, 820), 펜스 반지름 600,
-베이스 간격 190. 관중석 불빛은 흐리게(보케) 처리해 사진 같은 질감을 낸다.
-실행: tools/.venv/bin/python -I tools/make_stadium.py
+Run tools/.venv/bin/python -I tools/make_stadium.py. No external assets.
 """
 import math
 from pathlib import Path
-
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 
 W, H = 1600, 1000
 HOME = (800, 820)
-R = 600
-D = 190
-OUT = Path(__file__).resolve().parent.parent / "app" / "src" / "main" / "assets" / "stadium.webp"
-rng = np.random.default_rng(3)
+R, D = 600, 190
+OUT = Path(__file__).resolve().parent.parent / 'app/src/main/assets/stadium.webp'
+rng = np.random.default_rng(31)
 
 
-def polar(a_deg, r):
-    a = math.radians(a_deg)
-    return HOME[0] + r * math.cos(a), HOME[1] - r * math.sin(a)
+def polar(a, r):
+    a = math.radians(a)
+    return (HOME[0] + r * math.cos(a), HOME[1] - r * math.sin(a))
 
 
-def fan(r, a0=45, a1=135, steps=90):
-    pts = [HOME]
-    for i in range(steps + 1):
-        pts.append(polar(a0 + (a1 - a0) * i / steps, r))
-    return pts
+def arc(r, a=30, b=150):
+    return [polar(t, r) for t in np.linspace(a, b, 320)]
 
 
-def radial(size, center, radius, color, alpha):
-    """부드러운 원형 빛 레이어(RGBA)."""
-    yy, xx = np.mgrid[0:size[1], 0:size[0]]
-    d = np.sqrt((xx - center[0]) ** 2 + (yy - center[1]) ** 2) / radius
-    a = np.clip(1 - d, 0, 1) ** 2.2 * alpha
-    layer = np.zeros((size[1], size[0], 4), dtype=np.float32)
-    layer[..., 0], layer[..., 1], layer[..., 2] = color
-    layer[..., 3] = a * 255
-    return Image.fromarray(layer.astype(np.uint8), "RGBA")
+def ring(inner, outer, a=30, b=150):
+    return arc(outer, a, b) + arc(inner, a, b)[::-1]
+
+
+def glow(img, point, radius, color, opacity):
+    yy, xx = np.mgrid[:H, :W]
+    d = ((xx-point[0])**2 + (yy-point[1])**2) / radius**2
+    layer = np.zeros((H, W, 4), dtype=np.uint8)
+    layer[..., :3] = color
+    layer[..., 3] = (np.exp(-d * 4) * opacity).astype(np.uint8)
+    img.alpha_composite(Image.fromarray(layer))
 
 
 def main():
-    img = Image.new("RGBA", (W, H), (9, 12, 19, 255))
-    # 경기장 바깥 어둠에 아주 약한 푸른 기운.
-    img.alpha_composite(radial((W, H), (800, 520), 900, (30, 44, 70), 0.55))
+    img = Image.new('RGBA', (W, H), (5, 11, 19, 255))
+    glow(img, (800, 350), 1000, (31, 57, 79), 110)
+    dr = ImageDraw.Draw(img)
+    # The bowl has three real tiers, separated by concourses and illuminated fascia.
+    for inner, outer in [(638, 700), (724, 785), (810, 872)]:
+        dr.polygon(ring(inner-5, outer+8, 24, 156), fill=(8, 17, 27))
+        dr.polygon(ring(inner, outer, 25, 155), fill=(22, 37, 48))
+        for radius in np.arange(inner + 3, outer, 6):
+            dr.line(arc(radius, 25, 155), fill=(42, 56, 65), width=1)
+            for angle in np.arange(26, 155, 0.48):
+                if int((angle-25) % 10) == 0:
+                    continue
+                x, y = polar(angle, radius)
+                if not 0 <= y < H:
+                    continue
+                shade = rng.uniform(.35, 1)
+                c = [(79,101,116), (148,157,157), (61,90,113), (173,152,117)][rng.integers(4)]
+                dr.rectangle((x-1.5, y-1, x+1.5, y+1.2), fill=tuple(int(v*shade) for v in c))
+        for angle in range(25, 156, 10):
+            dr.line([polar(angle, inner), polar(angle, outer)], fill=(74, 84, 86), width=3)
+            for radius in range(inner, outer, 5):
+                p = polar(angle, radius)
+                dr.line([(p[0]-2,p[1]),(p[0]+2,p[1])], fill=(123,129,121), width=1)
+        dr.polygon(ring(inner-9, inner-3, 25,155), fill=(12,33,48))
+        dr.line(arc(inner-4,25,155), fill=(77,145,176), width=2)
+        dr.line(arc(outer+4,25,155), fill=(58,72,82), width=2)
+    # Sparse spectator lights, not multicoloured confetti.
+    lights = Image.new('RGBA', (W,H))
+    ld = ImageDraw.Draw(lights)
+    for _ in range(420):
+        x,y = polar(rng.uniform(27,153),rng.uniform(640,868))
+        ld.ellipse((x-1,y-1,x+1,y+1),fill=(197,224,239,int(rng.uniform(50,185))))
+    img.alpha_composite(lights.filter(ImageFilter.GaussianBlur(2)))
+    img.alpha_composite(lights)
+    dr = ImageDraw.Draw(img)
+    # Foul territory, warning track and padded fence.
+    dr.polygon([HOME]+arc(632,39,141), fill=(23,43,39))
+    dr.polygon([HOME]+arc(600,45,135), fill=(107,74,53))
+    dr.polygon(ring(600,618,45,135),fill=(12,35,40))
+    dr.line(arc(618,45,135),fill=(101,155,161),width=2)
+    dr.line(arc(601,45,135),fill=(214,185,114),width=3)
+    for angle in range(46,135,3):
+        dr.line([polar(angle,601),polar(angle,618)], fill=(40,64,65),width=1)
+    # Pixel-level turf: alternating mowing direction, fine blades, floodlight falloff.
+    yy,xx=np.mgrid[:H,:W]
+    radius=np.sqrt((xx-800)**2+(yy-820)**2)
+    stripe=np.where(((xx+yy)//38)%2==0,1.,.86)
+    illumination=.70+.30*np.exp(-((xx-800)**2/450000+(yy-490)**2/250000))
+    grain=rng.normal(0,1.7,(H,W))
+    turf=np.zeros((H,W,3),dtype=np.uint8)
+    for c,value in enumerate((43,104,69)):
+        turf[...,c]=np.clip(value*stripe*illumination+grain,0,255)
+    mask=Image.new('L',(W,H))
+    ImageDraw.Draw(mask).polygon([HOME]+arc(576,45,135),fill=255)
+    img.paste(Image.fromarray(turf),(0,0),mask)
+    # Rounded infield skin with turf diamond, cutouts, batter boxes and chalk.
+    dirt=Image.new('L',(W,H)); dd=ImageDraw.Draw(dirt)
+    dd.polygon([HOME]+arc(310,45,135), fill=255)
+    diamond=[polar(90,24),polar(45,D-24),polar(90,D*math.sqrt(2)-28),polar(135,D-24)]
+    dd.polygon(diamond,fill=0)
+    dd.ellipse((766,786,834,854),fill=255)
+    mound=polar(90,D*.707)
+    dd.ellipse((mound[0]-19,mound[1]-19,mound[0]+19,mound[1]+19),fill=255)
+    texture=np.zeros((H,W,3),dtype=np.uint8)
+    for c,value in enumerate((142,103,75)):
+        texture[...,c]=np.clip(value*illumination+rng.normal(0,2,(H,W)),0,255)
+    img.paste(Image.fromarray(texture),(0,0),dirt)
+    dr=ImageDraw.Draw(img)
+    chalk=(215,225,211)
+    for angle in (45,135):
+        dr.line([HOME,polar(angle,600)],fill=chalk,width=2)
+        x,y=polar(angle,600)
+        dr.line([(x,y),(x,y-60)],fill=(218,191,94),width=3)
+        dr.line([(x,y-60),(x+8,y-60),(x+8,y-30)],fill=(146,137,83),width=1)
+    for x,y in (polar(45,D),polar(90,D*math.sqrt(2)),polar(135,D)):
+        dr.polygon([(x,y-6),(x+6,y),(x,y+6),(x-6,y)],fill=(239,237,218))
+    dr.rectangle((mound[0]-5,mound[1]-2,mound[0]+5,mound[1]+2),fill=chalk)
+    dr.polygon([(794,816),(806,816),(806,822),(800,828),(794,822)],fill=chalk)
+    for x in (779,810):
+        dr.rectangle((x,806,x+11,829),outline=(195,187,160),width=1)
+    # Dugouts and low railings anchor the near side of the field.
+    for side in (-1,1):
+        x=800+side*220
+        dr.rounded_rectangle((x-55,735,x+55,759),radius=4,fill=(10,25,34),outline=(64,85,94),width=2)
+        dr.line([(x-49,741),(x+49,741)],fill=(98,134,146),width=2)
+        for dx in range(-45,46,15):
+            dr.line([(x+dx,743),(x+dx,756)],fill=(45,68,80),width=2)
+    # Architectural light banks with restrained bloom and visible individual lamps.
+    for x,y in ((270,106),(490,36),(1110,36),(1330,106)):
+        dr=ImageDraw.Draw(img)
+        dr.line([(x,y+12),(x,y+84)],fill=(70,87,101),width=4)
+        dr.line([(x-20,y+15),(x,y+45),(x+20,y+15)],fill=(59,76,90),width=2)
+        dr.rounded_rectangle((x-46,y-12,x+46,y+13),radius=3,fill=(39,56,70))
+        glow(img,(x,y),145,(174,215,244),75)
+        glow(img,(x,y),54,(220,239,251),120)
+        dr=ImageDraw.Draw(img)
+        for col in range(9):
+            for row in range(2):
+                lx=x-39+col*9; ly=y-6+row*10
+                dr.rectangle((lx,ly,lx+5,ly+4),fill=(236,247,255))
+    # Low haze binds the bowl and field without obscuring the playable geometry.
+    glow(img,(800,250),650,(113,162,187),16)
+    distance=((xx-800)/1000)**2+((yy-480)/740)**2
+    vignette=np.zeros((H,W,4),dtype=np.uint8)
+    vignette[...,:3]=(3,8,15)
+    vignette[...,3]=np.clip((distance-.35)*120,0,200).astype(np.uint8)
+    img.alpha_composite(Image.fromarray(vignette))
+    img.convert('RGB').save(OUT,'WEBP',quality=95,method=6)
+    print(f'{OUT}: {OUT.stat().st_size:,} bytes')
 
-    # 관중석: 어두운 계단식 띠 + 흐린 불빛 점.
-    stands = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    sd = ImageDraw.Draw(stands)
-    for k, r in enumerate(range(R + 200, R + 20, -12)):
-        shade = 18 + (k % 2) * 5
-        sd.pieslice([HOME[0] - r, HOME[1] - r, HOME[0] + r, HOME[1] + r], 180 + 32, 360 - 32, fill=(shade, shade + 4, shade + 12, 255))
-    img.alpha_composite(stands)
 
-    dots = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    dd = ImageDraw.Draw(dots)
-    palette = [(235, 240, 255), (170, 195, 255), (90, 130, 255), (255, 120, 120), (255, 220, 150), (210, 210, 220)]
-    for _ in range(4600):
-        a = rng.uniform(34, 146)
-        r = rng.uniform(R + 28, R + 205)
-        x, y = polar(a, r)
-        if not (0 <= x < W and 0 <= y < H):
-            continue
-        c = palette[rng.integers(len(palette))]
-        rad = rng.uniform(1.2, 3.4)
-        alpha = int(rng.uniform(70, 230))
-        dd.ellipse([x - rad, y - rad, x + rad, y + rad], fill=(*c, alpha))
-    img.alpha_composite(dots.filter(ImageFilter.GaussianBlur(1.1)))
-    img.alpha_composite(dots.filter(ImageFilter.GaussianBlur(6)))
-
-    # 그라운드.
-    ground = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    gd = ImageDraw.Draw(ground)
-    gd.polygon(fan(R), fill=(120, 78, 50, 255))  # 워닝 트랙
-    gd.polygon(fan(R - 24), fill=(30, 92, 58, 255))
-    mask = Image.new("L", (W, H), 0)
-    ImageDraw.Draw(mask).polygon(fan(R - 24), fill=255)
-    stripes = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    st = ImageDraw.Draw(stripes)
-    for i in range(-40, 60):
-        # 45도 사선 잔디 결.
-        x0 = i * 44
-        st.polygon([(x0, 0), (x0 + 22, 0), (x0 + 22 - H, H), (x0 - H, H)], fill=(255, 255, 255, 14))
-    ground.paste(stripes, (0, 0), Image.composite(stripes, Image.new("RGBA", (W, H)), mask))
-    gd = ImageDraw.Draw(ground)
-    # 내야 흙: 홈 주변 원 + 베이스 라인을 따른 흙길 + 내야 잔디.
-    b1, b2, b3 = polar(45, D), polar(90, D * math.sqrt(2)), polar(135, D)
-    gd.polygon([HOME, polar(45, D + 26), polar(90, D * math.sqrt(2) + 30), polar(135, D + 26)], fill=(138, 92, 58, 255))
-    inner = [polar(90, 18), polar(45, D - 18), polar(90, D * math.sqrt(2) - 24), polar(135, D - 18)]
-    inner = [(x, y) for x, y in inner]
-    gd.polygon(inner, fill=(38, 112, 70, 255))
-    gd.ellipse([HOME[0] - 34, HOME[1] - 34, HOME[0] + 34, HOME[1] + 34], fill=(138, 92, 58, 255))
-    mound = polar(90, D * 0.707 * 1.0)
-    gd.ellipse([mound[0] - 17, mound[1] - 17, mound[0] + 17, mound[1] + 17], fill=(150, 100, 64, 255))
-    gd.rectangle([mound[0] - 6, mound[1] - 2, mound[0] + 6, mound[1] + 2], fill=(235, 235, 235, 255))
-    # 파울 라인·베이스 라인.
-    line = (240, 244, 250, 235)
-    gd.line([HOME, polar(45, R - 24)], fill=line, width=3)
-    gd.line([HOME, polar(135, R - 24)], fill=line, width=3)
-    gd.line([b1, b2, b3], fill=(240, 244, 250, 120), width=2)
-    for b in (b1, b2, b3):
-        gd.polygon([(b[0], b[1] - 9), (b[0] + 9, b[1]), (b[0], b[1] + 9), (b[0] - 9, b[1])], fill=(250, 250, 250, 255))
-    gd.polygon([(HOME[0] - 8, HOME[1] - 6), (HOME[0] + 8, HOME[1] - 6), (HOME[0] + 8, HOME[1] + 2), (HOME[0], HOME[1] + 9), (HOME[0] - 8, HOME[1] + 2)], fill=(250, 250, 250, 255))
-    img.alpha_composite(ground)
-
-    # 조명: 그라운드를 위에서 비추는 빛 + 조명탑 번짐.
-    light = radial((W, H), (800, 430), 700, (255, 250, 230), 0.20)
-    img.alpha_composite(light)
-    for x, y, rad in ((270, 30, 260), (590, -20, 230), (1010, -20, 230), (1330, 30, 260)):
-        img.alpha_composite(radial((W, H), (x, y), rad, (255, 250, 235), 0.85))
-        img.alpha_composite(radial((W, H), (x, y), rad * 0.25, (255, 255, 255), 1.0))
-    # 가장자리 비네트.
-    img.alpha_composite(radial((W, H), (800, 1500), 1500, (0, 0, 0), 0.0))
-    yy, xx = np.mgrid[0:H, 0:W]
-    v = np.clip((np.sqrt(((xx - 800) / 900) ** 2 + ((yy - 560) / 640) ** 2) - 0.75) / 0.6, 0, 1) * 200
-    vig = np.zeros((H, W, 4), dtype=np.uint8)
-    vig[..., :3] = (8, 11, 17)
-    vig[..., 3] = v.astype(np.uint8)
-    img.alpha_composite(Image.fromarray(vig, "RGBA"))
-
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    img.convert("RGB").save(OUT, "WEBP", quality=88, method=6)
-    print(OUT, OUT.stat().st_size)
-
-
-if __name__ == "__main__":
+if __name__=='__main__':
     main()
