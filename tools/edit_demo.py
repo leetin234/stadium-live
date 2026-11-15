@@ -4,6 +4,8 @@
 기능 설명 칩만 얹는다. 시각(초)은 tools/record_demo.sh의 진행 순서에 맞춘 값이다.
 실행: tools/.venv/bin/python -I tools/edit_demo.py
 """
+import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -18,10 +20,14 @@ FONT = ROOT / "app" / "src" / "main" / "res" / "font"
 W, H = 1920, 1080
 DEV = (200, 182, 1520, 855)  # 녹화 화면(2560x1440)을 놓을 위치와 크기
 INTRO, OUTRO = 3.0, 3.5
+# 배경 음악: 시연 영상 시안(사용자 제작)의 오프닝 음악. 처음(중계 시작 전)과 마지막 멘트 뒤에만 깐다.
+BGM_SRC = Path.home() / "Downloads" / "STADIUM_LIVE_시연영상_v2.mp4"
+BGM_RANGE = (0.3, 36.0)  # 시안에서 글자만 나오는 오프닝 구간
+BGM_GAIN = 0.55
 # 앱 화면의 '차량 실내 연출' 카드(Vehicle SDK 응답값) 위치와 확대 인셋 표시 구간.
-INSET = (900, 1010, 530, 140)
-INSET_K = 0.9
-INSET_XY = (216, 760)
+INSET = (906, 986, 428, 144)
+INSET_K = 1.12
+INSET_XY = (212, 752)
 INSET_T = (36.0, 85.0)
 
 TEAL = (82, 200, 240)
@@ -135,7 +141,7 @@ def main():
     header("h3", "03", "정차 후 몰입", "Park 감지", "멈췄을 때, ", "한 타석의 긴장감", "까지", "소리뿐 아니라 실내 앰비언트 조명·공조 송풍까지 경기 흐름에 맞춰 움직여요 (Pleos Vehicle SDK)")
     header("h4", "04", "종료 및 피드백", "정차 상태", "언제든 ", "기본 중계", "로, 듣고 난 뒤엔 짧게 평가", "몰입감 · 해설 명료도 · 음량 변화 불편을 정차 상태에서만 입력")
     callouts = [
-        ("c1", "연출 강도 '강'으로 변경", 6.8, 11.5, TEAL),
+        ("c1", "현장감 '강' 선택 → 이 경기 듣기", 6.8, 11.5, TEAL),
         ("c2", "기어 D → 주행 제한 감지 · 해설 중심 화면", 15.0, 19.6, (245, 184, 61)),
         ("c3", "내비 안내 → 중계·효과 음량만 낮춤(오디오 포커스)", 19.8, 24.6, (245, 184, 61)),
         ("c4", "전화 수신 → 중계·효과 일시정지, 통화 후 자동 재개", 24.8, 33.8, (245, 184, 61)),
@@ -184,8 +190,23 @@ def main():
         run(["ffmpeg", "-v", "error", "-y", "-loop", "1", "-i", str(WORK / f"{name}.png"), "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo",
              "-t", str(dur), "-vf", f"fade=in:0:12,fade=out:st={dur - 0.4}:d=0.4,format=yuv420p", "-r", "30", "-c:v", "libx264", "-crf", "19", "-c:a", "aac", "-b:a", "192k", str(WORK / f"{name}.mp4")])
     out = DEMO / "STADIUM_LIVE_실동작_시연.mp4"
-    run(["ffmpeg", "-v", "error", "-y", "-i", str(WORK / "intro.mp4"), "-i", str(main_mp4), "-i", str(WORK / "outro.mp4"),
-         "-filter_complex", "[0:v][0:a][1:v][1:a][2:v][2:a]concat=n=3:v=1:a=1[v][a]", "-map", "[v]", "-map", "[a]",
+    # 배경 음악 구간(최종 영상 시각). 앞: 시작~중계 재생 직전, 뒤: 마지막 해설이 끝난 뒤~끝.
+    log = (DEMO / "record.log").read_text()
+    clock = lambda tag: sum(int(x) * k for x, k in zip(re.search(rf"\[(\d+):(\d+):(\d+)\] {tag}", log).groups(), (3600, 60, 1)))
+    pb = clock("playback start") - clock("record start") - 0.3
+    game = json.loads((ROOT / "app/src/main/assets/game1/game.json").read_text())
+    last = max(c["end"] for c in game["captions"]) / 1000 + video_off + 0.4
+    total = INTRO + 101 + OUTRO
+    a_end, b_start = INTRO + pb, INTRO + last
+    print(f"bgm 0~{a_end:.1f}s, {b_start:.1f}~{total:.1f}s")
+    b_len = total - b_start
+    fc = [f"[0:v][0:a][1:v][1:a][2:v][2:a]concat=n=3:v=1:a=1[v][a0]",
+          f"[3:a]atrim={BGM_RANGE[0]}:{BGM_RANGE[1]},asetpts=PTS-STARTPTS,aresample=48000,aformat=channel_layouts=stereo,loudnorm=I=-18:TP=-2,volume={BGM_GAIN},asplit[m1][m2]",
+          f"[m1]atrim=0:{a_end:.2f},afade=t=in:d=0.8,afade=t=out:st={a_end - 2.2:.2f}:d=2.2[ba]",
+          f"[m2]atrim=0:{b_len:.2f},afade=t=in:d=2.5,afade=t=out:st={b_len - 2.5:.2f}:d=2.5,adelay={round(b_start * 1000)}:all=1[bb]",
+          "[a0][ba][bb]amix=inputs=3:normalize=0:duration=first,alimiter=limit=0.95[a]"]
+    run(["ffmpeg", "-v", "error", "-y", "-i", str(WORK / "intro.mp4"), "-i", str(main_mp4), "-i", str(WORK / "outro.mp4"), "-i", str(BGM_SRC),
+         "-filter_complex", ";".join(fc), "-map", "[v]", "-map", "[a]",
          "-c:v", "libx264", "-preset", "medium", "-crf", "19", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(out)])
     print(out, out.stat().st_size)
 

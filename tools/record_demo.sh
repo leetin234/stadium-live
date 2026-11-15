@@ -35,9 +35,9 @@ sleep 1.5
 
 # 01 출발 전 설정(정차): 응원 팀 확인, 연출 강도 '강'.
 sleep 3
-tap_text "강" 1 -16 -39
+tap_text "강"
 sleep 2.5
-tap_text "설정 저장 · 출발 시 자동 적용"
+tap_text "이 경기 듣기"
 log "playback start"
 sleep 3
 
@@ -63,7 +63,7 @@ sleep 2
 tap_text "★" 5; sleep 0.6
 tap_text "★" 9; sleep 0.6
 tap_text "★" 15; sleep 0.8
-tap_text "평가 보내기"
+tap_text "평가 저장하기"
 sleep 3.5
 
 $A emu screenrecord stop >/dev/null || true

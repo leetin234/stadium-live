@@ -1,16 +1,16 @@
-[18:08:53] record start
-[18:09:00] tap '강' #1 at 2461 272
-[18:09:04] tap '설정 저장 · 출발 시 자동 적용' #1 at 2259 1236
-[18:09:04] playback start
-[18:09:07] drive
+[19:07:56] record start
+[19:08:03] tap '강' #1 at 2377 670
+[19:08:07] tap '이 경기 듣기' #1 at 2311 1210
+[19:08:07] playback start
+[19:08:10] drive
 Warning: Activity not started, intent has been delivered to currently running top-most instance.
-[18:09:13] nav prompt
+[19:08:15] nav prompt
 Warning: Activity not started, intent has been delivered to currently running top-most instance.
-[18:09:18] incoming call
-[18:09:27] park
-[18:10:23] tap '★' #5 at 2155 592
-[18:10:25] tap '★' #9 at 2090 686
-[18:10:28] tap '★' #15 at 2155 780
-[18:10:31] tap '평가 보내기' #1 at 1694 892
-[18:10:34] record stop
--rw-r--r--@ 1 itaein  staff  162283342 Nov 15 18:10 demo/raw.webm
+[19:08:20] incoming call
+[19:08:29] park
+[19:09:26] tap '★' #5 at 2059 615
+[19:09:28] tap '★' #9 at 1994 741
+[19:09:31] tap '★' #15 at 2059 867
+[19:09:34] tap '평가 저장하기' #1 at 1694 995
+[19:09:37] record stop
+-rw-r--r--@ 1 itaein  staff  180076615 Nov 15 19:09 demo/raw.webm
