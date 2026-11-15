@@ -1,6 +1,14 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application") version "8.5.2"
     id("org.jetbrains.kotlin.android") version "1.9.24"
+}
+
+// release 서명: 저장소 밖 ~/.android/stadiumlive-release.properties가 있으면 그 키로, 없으면 디버그 키로 서명한다.
+val releaseProps = Properties().apply {
+    val f = File(System.getProperty("user.home"), ".android/stadiumlive-release.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
 }
 
 android {
@@ -13,6 +21,24 @@ android {
         targetSdk = 34
         versionCode = 2
         versionName = "0.2.0"
+    }
+    signingConfigs {
+        create("release") {
+            if (releaseProps.isNotEmpty()) {
+                storeFile = File(releaseProps.getProperty("storeFile"))
+                storePassword = releaseProps.getProperty("storePassword")
+                keyAlias = releaseProps.getProperty("keyAlias")
+                keyPassword = releaseProps.getProperty("keyPassword")
+            } else {
+                initWith(getByName("debug"))
+            }
+        }
+    }
+    buildTypes {
+        getByName("release") {
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

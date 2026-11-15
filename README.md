@@ -18,22 +18,45 @@ Pleos Connect(Android Automotive) 차량에서 야구 중계를 들을 때, 경�
 - **화면**: 시연 영상의 디자인(Pretendard, 단색 다크 카드, 민트 선택·파랑 주버튼, 글자 방패 엠블럼, 3구간 이벤트 큐)을 그대로 따랐습니다. 경기장은 `tools/make_stadium.py`로 미리 그린 이미지(흐린 관중 불빛·잔디 결·조명탑) 위에 주자, 타구 궤적·그림자, 충격파, '딱!', 득점 섬광·꽃가루, 끝내기 배너, 응원가 불빛 파도, 심박 비네트를 Compose로 얹습니다. 움직임은 모두 중계 시각에서 계산하므로 탐색해도 어긋나지 않습니다. '연출 레이어' 카드는 동기화 엔진이 지금 내는 소리를 그대로 보여 줍니다.
 - **평가**: 경기가 끝나면 정차 상태에서 몰입감·해설 명료도·음량 변화 편의를 별점으로 저장합니다.
 
-## 내려받기
+## APK
 
-설치용 APK는 [Releases](https://github.com/leetin234/stadium-live/releases/latest)에 있습니다(Android Automotive 전용, 디버그 서명). `adb install -r STADIUM_LIVE_debug.apk`
-
-## 실행
-
-JDK 17, Android SDK 34, Pleos Connect Emulator 2.1.0(AVD) 기준입니다.
+- 저장소 안: [`apk/STADIUMLIVE_STADIUMLIVE_release.apk`](apk/STADIUMLIVE_STADIUMLIVE_release.apk) (release 빌드, 서명됨)
+- GitHub Releases: https://github.com/leetin234/stadium-live/releases/latest
 
 ```sh
-./gradlew assembleDebug testDebugUnitTest
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb install -r apk/STADIUMLIVE_STADIUMLIVE_release.apk
+adb shell am start -n kr.stadiumlive.vehicle/kr.stadiumlive.MainActivity
 ```
 
-특정 시점부터 보기(시연 촬영용): `adb shell am start -S -n kr.stadiumlive.vehicle/kr.stadiumlive.MainActivity --el startAt 43000 [--ez pause true]`
+## 테스트 환경
 
-주행 상태 전환은 Pleos Virtual Console(`adb forward tcp:8088 tcp:8088` 후 http://localhost:8088)의 Gear D/P로 확인했습니다. 송풍 연출은 에뮬레이터의 공조가 켜져 있어야 하므로 Virtual Console의 HVAC Power를 On으로 두세요(꺼져 있으면 조명만 동작).
+| 항목 | 값 |
+|---|---|
+| Pleos Connect 에뮬레이터 | 2.1.0 (Android Automotive, API 34) |
+| 화면 규격 | 2560×1440 px, 160dpi (앱 영역 1680×1210 px) |
+| Pleos SDK | Vehicle SDK 2.3.2 (앰비언트 조명·공조) |
+| 빌드 도구 | JDK 17, Android SDK 34, AGP 8.5.2, Kotlin 1.9.24 |
+| minSdk / targetSdk | 28 / 34 |
+
+필요한 설정
+- 권한: 설치 시 `pleos.car.permission.CAR_LIGHTS · CONTROL_CAR_LIGHTS · CAR_CLIMATE · CONTROL_CAR_CLIMATE`가 부여됩니다(별도 조작 없음).
+- 주행·정차 전환: Pleos Virtual Console(`adb forward tcp:8088 tcp:8088` 후 http://localhost:8088)에서 Gear를 D/P로 바꿉니다. 정차(P)에서만 몰입 모드와 실내 연출이 켜집니다.
+- 실내 송풍 연출: Virtual Console의 **HVAC Power를 On**으로 두세요(꺼져 있으면 조명만 동작).
+- 네트워크·로그인 불필요. 중계 샘플과 효과음은 앱에 들어 있습니다.
+
+## 실행 방법 (소스에서 빌드)
+
+```sh
+./gradlew assembleRelease testDebugUnitTest      # 단위 테스트 13건
+adb install -r app/build/outputs/apk/release/app-release.apk
+```
+
+release 서명 키가 없으면(`~/.android/stadiumlive-release.properties` 부재) 디버그 키로 서명됩니다.
+
+앱 사용 순서: 응원 팀·현장감 선택 → **이 경기 듣기** → Gear D(해설 중심) → Gear P(몰입 모드: 소리·실내 조명·송풍 연출) → 종료 후 평가.
+화면의 **내비 / 전화** 버튼은 내비 안내(중계 감쇠)와 전화 수신(일시정지)을 재현합니다.
+
+특정 시점부터 보기(시연 촬영용): `adb shell am start -S -n kr.stadiumlive.vehicle/kr.stadiumlive.MainActivity --el startAt 43000 [--ez pause true]`
 
 ## 시연 영상
 
@@ -42,7 +65,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```sh
 adb forward tcp:8088 tcp:8088   # Virtual Console 탭을 브라우저에 열어 둔 상태여야 기어 변경이 먹힌다
 tools/record_demo.sh demo/raw.webm          # 에뮬레이터 자체 녹화기(화면+소리), 기어는 Virtual Console HTTP API
-tools/.venv/bin/python -I tools/edit_demo.py  # 구간 제목·기능 설명 칩, 음량 정규화(-16 LUFS)
+tools/.venv/bin/python -I tools/edit_demo.py  # 구간 제목·기능 설명 칩, 소리·화면 싱크 보정(tools/check_sync.py), 음량 정규화
 ```
 
 ## 음원 다시 만들기

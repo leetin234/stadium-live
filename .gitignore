@@ -11,3 +11,4 @@ tools/.work/
 demo/raw.webm
 demo/edit/
 submit/
+*.hprof
