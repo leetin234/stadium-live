@@ -48,6 +48,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -78,7 +79,7 @@ import kotlin.math.sin
 
 // ---- 디자인 토큰(시연 영상 기준) ----
 private val Bg = Color(0xFF090C12)
-private val Card = Color(0xFF141A24)
+private val Card = Color(0xFF161D28)
 private val CardHi = Color(0xFF202938)
 private val Line = Color(0xFF2A3444)
 private val TextHi = Color(0xFFF4F6FA)
@@ -196,111 +197,99 @@ private fun Setup(game: Game, ui: UiState, act: Actions) {
     val parked = ui.mode == Mode.PARKED
     var p by remember(ui.prefs) { mutableStateOf(ui.prefs) }
     Column(Modifier.fillMaxSize()) {
-        Text("오늘의 경기를, 내 차 안에서", fontSize = 36.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-1).sp)
-        Spacer(Modifier.height(8.dp))
-        Text("응원하는 팀을 고르고 나에게 맞는 현장감을 설정하세요", fontSize = 18.sp, color = TextLo)
-        Spacer(Modifier.height(28.dp))
-        Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-            Column(Modifier.weight(1.05f).fillMaxHeight()) {
-                Label("오늘의 경기")
-                SelectCard(selected = true, enabled = true, modifier = Modifier.fillMaxWidth().weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        SmallTag("녹화 샘플", Color(0xFF3A2A0E), Amber)
-                        Text("  오후 6:30 · 한강 스타디움", fontSize = 16.sp, color = TextMid)
-                    }
-                    Spacer(Modifier.weight(1f))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Shield(game.home, Modifier.size(42.dp, 48.dp), 20f)
-                        Text("  ${game.home.name}", fontSize = 25.sp, fontWeight = FontWeight.Bold)
-                        Text("  vs  ", fontSize = 17.sp, color = TextLo)
-                        Text("${game.away.name}  ", fontSize = 25.sp, fontWeight = FontWeight.Bold)
-                        Shield(game.away, Modifier.size(42.dp, 48.dp), 20f)
-                    }
-                    Spacer(Modifier.weight(1f))
-                    Text("9회말, 2사 만루\n승부를 바꾸는 67초", fontSize = 15.sp, color = TextLo)
+        Row(verticalAlignment = Alignment.Bottom) {
+            Column(Modifier.weight(1f)) {
+                Text("내 차가 야구장이 되는 순간", fontSize = 38.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-1).sp)
+                Spacer(Modifier.height(8.dp))
+                Text("응원하는 팀과 함께, 오늘의 결정적인 장면 속으로", fontSize = 18.sp, color = TextLo)
+            }
+            Tag("HIGHLIGHT · 67초", Mint)
+        }
+        Spacer(Modifier.height(26.dp))
+        Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+            Column(Modifier.weight(0.9f).fillMaxHeight().clip(RoundedCornerShape(28.dp)).background(Card)) {
+                Box(Modifier.fillMaxWidth().weight(1f)) {
+                    StadiumArtwork(Modifier.fillMaxSize())
+                    SmallTag("오늘의 경기 · 녹화 샘플", CardHi, TextHi)
                 }
-                Spacer(Modifier.height(14.dp))
-                SelectCard(selected = false, enabled = false, modifier = Modifier.fillMaxWidth().weight(1f)) {
+                Column(Modifier.padding(26.dp)) {
+                    Text("9회말, 2사 만루", color = Mint, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(10.dp))
+                    Text("승부를 바꾸는 마지막 한 타석", fontSize = 25.sp, fontWeight = FontWeight.ExtraBold)
+                    Spacer(Modifier.height(20.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        SmallTag("준비 중", CardHi, TextLo)
-                        Text("  다음 녹화 샘플", fontSize = 16.sp, color = TextLo)
+                        Shield(game.away, Modifier.size(34.dp, 40.dp), 17f)
+                        Text("  ${game.away.name}", fontSize = 21.sp, fontWeight = FontWeight.Bold)
+                        Text("   vs   ", color = TextLo, fontSize = 15.sp)
+                        Shield(game.home, Modifier.size(34.dp, 40.dp), 17f)
+                        Text("  ${game.home.name}", fontSize = 21.sp, fontWeight = FontWeight.Bold)
                     }
-                    Spacer(Modifier.weight(1f))
-                    Text("다음 경기를 준비하고 있어요", fontSize = 17.sp, color = TextLo)
-                    Spacer(Modifier.weight(1f))
+                    Spacer(Modifier.height(16.dp))
+                    Text("오후 6:30 · 한강 스타디움", fontSize = 16.sp, color = TextLo)
                 }
             }
-            Column(Modifier.weight(1f).fillMaxHeight()) {
-                Label("응원 팀")
-                Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    listOf(game.home to "홈 · 응원 리듬 A", game.away to "원정 · 응원 리듬 B").forEach { (t, sub) ->
-                        SelectCard(
-                            selected = p.myTeam == t.id, enabled = parked,
-                            modifier = Modifier.weight(1f).fillMaxHeight(),
-                            onClick = { p = p.copy(myTeam = t.id) },
-                        ) {
-                            Spacer(Modifier.weight(1f))
-                            Shield(t, Modifier.align(Alignment.CenterHorizontally).size(96.dp, 108.dp), 46f)
-                            Spacer(Modifier.height(20.dp))
-                            Text(t.name, fontSize = 25.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.align(Alignment.CenterHorizontally))
-                            Spacer(Modifier.height(6.dp))
-                            Text(sub, fontSize = 15.sp, color = TextLo, modifier = Modifier.align(Alignment.CenterHorizontally))
-                            Spacer(Modifier.weight(1f))
+            Column(Modifier.weight(1.25f).fillMaxHeight()) {
+                Label("01   어느 팀을 응원하세요?")
+                Row(Modifier.height(134.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    listOf(game.home, game.away).forEach { t ->
+                        SelectCard(p.myTeam == t.id, parked, Modifier.weight(1f).fillMaxHeight(), { p = p.copy(myTeam = t.id) }) {
+                            Row(Modifier.fillMaxHeight(), verticalAlignment = Alignment.CenterVertically) {
+                                Shield(t, Modifier.size(52.dp, 62.dp), 27f)
+                                Column(Modifier.padding(start = 16.dp)) {
+                                    Text(t.name, fontSize = 23.sp, fontWeight = FontWeight.Bold)
+                                    Spacer(Modifier.height(6.dp))
+                                    Text(if (t.id == game.home.id) "홈 · 응원 리듬 A" else "원정 · 응원 리듬 B", fontSize = 14.sp, color = TextLo)
+                                }
+                            }
                         }
                     }
                 }
-            }
-            Column(Modifier.weight(1.15f).fillMaxHeight()) {
+                Spacer(Modifier.height(22.dp))
+                Label("02   현장감을 얼마나 느낄까요?")
                 val levels = listOf("끄기" to 0f, "약" to 0.3f, "중" to 0.7f, "강" to 1f)
                 val idx = if (!p.effectsOn) 0 else levels.drop(1).indexOfFirst { abs(it.second - p.intensity) < 0.16f }.let { if (it < 0) 2 else it + 1 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Label("연출 강도", Modifier.weight(1f))
-                    Text(listOf("효과 없이", "약하게", "보통으로", "강하게")[idx], color = Mint, fontSize = 15.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 10.dp))
-                }
-                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Card).border(1.dp, Line, RoundedCornerShape(18.dp)).padding(horizontal = 22.dp, vertical = 20.dp)) {
-                    StopSlider(levels.size, idx, parked) { i ->
-                        p = if (i == 0) p.copy(effectsOn = false) else p.copy(effectsOn = true, intensity = levels[i].second)
-                    }
-                    Spacer(Modifier.height(12.dp))
-                    Row {
-                        levels.forEachIndexed { i, (l, _) ->
-                            Text(l, fontSize = 15.sp, color = if (i == idx) TextHi else TextLo, modifier = Modifier.weight(1f),
-                                textAlign = if (i == 0) TextAlign.Start else if (i == levels.lastIndex) TextAlign.End else TextAlign.Center)
+                PanelCard(padding = 18.dp) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        levels.forEachIndexed { i, (label, value) ->
+                            Box(Modifier.weight(1f).height(58.dp).clip(RoundedCornerShape(14.dp))
+                                .background(if (i == idx) Blue else CardHi)
+                                .clickable(enabled = parked) { p = if (i == 0) p.copy(effectsOn = false) else p.copy(effectsOn = true, intensity = value) }, contentAlignment = Alignment.Center) {
+                                Text(label, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = if (i == idx) Color.White else TextMid)
+                            }
                         }
                     }
+                    Spacer(Modifier.height(12.dp))
+                    Text(listOf("해설과 함께 편안하게 들어요", "은은한 현장감을 더해요", "긴장과 환호를 균형 있게 느껴요", "결정적인 순간을 더 생생하게 느껴요")[idx], color = TextMid, fontSize = 15.sp)
                 }
                 Spacer(Modifier.height(18.dp))
-                Label("상태별 모드")
-                Column(
-                    Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(18.dp)).background(Card).border(1.dp, Line, RoundedCornerShape(18.dp)).padding(horizontal = 22.dp),
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    ToggleRow("주행 중 · 해설 중심", "효과 약하게 · 점수와 이닝만 표시", true, false) {}
-                    Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
-                    ToggleRow("정차 시 몰입 모드", "정차 확인 후 강한 연출 · 상세 화면", p.immersiveOnPark, parked) { p = p.copy(immersiveOnPark = it) }
-                    Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
-                    ToggleRow("차 안에서도 느끼는 현장감", "경기에 맞춰 조명과 바람이 움직여요", p.cabinOn, parked) { p = p.copy(cabinOn = it) }
+                PanelCard(Modifier.weight(1f), padding = 20.dp) {
+                    ToggleRow("정차 시 몰입 모드", "경기장 화면과 풍성한 현장 사운드", p.immersiveOnPark, parked) { p = p.copy(immersiveOnPark = it) }
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(Line.copy(alpha = 0.5f)))
+                    ToggleRow("실내 조명과 바람", "경기의 흐름을 차 안에서도 느껴요", p.cabinOn, parked) { p = p.copy(cabinOn = it) }
                 }
             }
         }
-        Spacer(Modifier.height(18.dp))
-        Label("정차 몰입 모드에서 이렇게 들려요")
-        FlowStrip()
-        Spacer(Modifier.height(18.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Spacer(Modifier.height(22.dp))
+        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(Card).padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
             InfoIcon()
-            Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                Text("정차하면 현장감 있게, 주행하면 해설에 집중해요.", fontSize = 15.sp, color = TextMid)
-                Text("제작·이용 허가 음원 사용 · 실제 선수 생체 정보 미사용", fontSize = 15.sp, color = TextMid)
+            Column(Modifier.weight(1f).padding(start = 14.dp)) {
+                Text("주행 중에는 점수와 재생 버튼만 크게 표시해요", fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(5.dp))
+                Text("제작·이용 허가 음원 사용 · 실제 선수 생체 정보 미사용", fontSize = 13.sp, color = TextLo)
             }
-            SecondaryButton(if (ui.playing && ui.screen == Screen.SETUP) "■  미리 듣기 중" else "미리 듣기") { act.savePrefs(p); act.preview() }
-            Spacer(Modifier.width(14.dp))
-            PrimaryButton(if (parked) "이 경기 듣기" else "저장된 설정으로 듣기", Modifier.width(380.dp)) {
-                if (parked) act.savePrefs(p)
-                act.start()
-            }
+            SecondaryButton(if (ui.playing) "미리 듣기 중지" else "미리 듣기") { act.savePrefs(p); act.preview() }
+            Spacer(Modifier.width(12.dp))
+            PrimaryButton("이 경기 듣기", Modifier.width(260.dp)) { if (parked) act.savePrefs(p); act.start() }
         }
     }
+}
+
+@Composable
+private fun StadiumArtwork(modifier: Modifier) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val bitmap = remember { ctx.assets.open("stadium.webp").use { android.graphics.BitmapFactory.decodeStream(it) } }
+    androidx.compose.foundation.Image(bitmap = bitmap.asImageBitmap(), contentDescription = null, modifier = modifier,
+        contentScale = androidx.compose.ui.layout.ContentScale.Crop)
 }
 
 @Composable
@@ -413,7 +402,7 @@ private fun BigTile(modifier: Modifier, onClick: () -> Unit, content: @Composabl
 private fun Immersive(game: Game, engine: CueEngine, ui: UiState, act: Actions, s: SceneInput, idle: State<Long>) {
     val ms = ui.position
     Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-        Column(Modifier.width(390.dp).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(Modifier.width(368.dp).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             ScoreCard(game, s.board, ui.prefs)
             BatterCard(engine, s.board, ms, s, Modifier)
             MixerCard(engine, ui, s, Modifier.weight(1f))
@@ -421,6 +410,10 @@ private fun Immersive(game: Game, engine: CueEngine, ui: UiState, act: Actions, 
         Column(Modifier.weight(1f).fillMaxHeight()) {
             Box(Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(Color(0xFF090C12))) {
                 StadiumView(Modifier.fillMaxSize().shake(s), s, idle)
+                Row(Modifier.align(Alignment.TopStart).padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+                    SmallTag("REPLAY", Color(0xDD111B28), TextHi)
+                    Text("  한강 스타디움", fontSize = 15.sp, color = TextMid)
+                }
                 HitPop(s, Modifier.align(Alignment.Center).offset(x = (-150).dp, y = 40.dp))
                 WalkoffBanner(game, s, Modifier.align(Alignment.TopCenter).padding(top = 34.dp))
                 game.captionAt(ms)?.let {
@@ -771,18 +764,18 @@ private fun EventQueue(game: Game, ui: UiState, act: Actions) {
 
 @Composable
 private fun Controls(ui: UiState, act: Actions) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Card).padding(horizontal = 18.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         GhostButton("−10초") { act.seek((ui.position - 10_000).coerceAtLeast(0)) }
-        Box(Modifier.size(56.dp).clip(CircleShape).background(Blue).clickable { act.toggle() }, contentAlignment = Alignment.Center) { PlayIcon(ui.playing, 22.dp) }
+        Box(Modifier.size(64.dp).clip(CircleShape).background(Blue).clickable { act.toggle() }, contentAlignment = Alignment.Center) { PlayIcon(ui.playing, 22.dp) }
         GhostButton("+10초") { act.seek(ui.position + 10_000) }
         Spacer(Modifier.width(4.dp))
-        GhostButton(if (ui.prefs.effectsOn) "효과 끄기 · 기본 중계" else "연출 다시 켜기", highlight = !ui.prefs.effectsOn) {
+        GhostButton(if (ui.prefs.effectsOn) "현장 효과 켜짐" else "현장 효과 꺼짐", highlight = !ui.prefs.effectsOn) {
             act.savePrefs(ui.prefs.copy(effectsOn = !ui.prefs.effectsOn))
         }
         Spacer(Modifier.weight(1f))
-        Text("시연", fontSize = 14.sp, color = TextLo)
-        GhostButton("내비 안내", enabled = ui.simulation == null) { act.simulateNav() }
-        GhostButton("전화 수신", enabled = ui.simulation == null) { act.simulateCall() }
+        Text("오디오 테스트", fontSize = 12.sp, color = TextLo)
+        GhostButton("내비", enabled = ui.simulation == null) { act.simulateNav() }
+        GhostButton("전화", enabled = ui.simulation == null) { act.simulateCall() }
     }
 }
 
@@ -790,11 +783,15 @@ private fun Controls(ui: UiState, act: Actions) {
 @Composable
 private fun Feedback(ui: UiState, act: Actions) {
     val scores = remember { mutableStateMapOf<String, Int>() }
-    val items = listOf("immersion" to "몰입감", "clarity" to "해설 명료도", "volume" to "음량 변화가 편했나요")
+    val items = listOf("immersion" to "몰입감", "clarity" to "해설 명료도", "volume" to "편안한 음량")
     Column(
         Modifier.fillMaxSize().clip(RoundedCornerShape(24.dp)).background(Card).border(1.dp, Line, RoundedCornerShape(24.dp)).padding(36.dp),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
     ) {
+        Box(Modifier.size(64.dp).clip(RoundedCornerShape(22.dp)).background(MintBg), contentAlignment = Alignment.Center) {
+            Text(if (ui.feedbackSaved) "✓" else "★", fontSize = 32.sp, color = Mint, fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.height(20.dp))
         Text(buildAnnotatedString {
             append("오늘의 ")
             withStyle(SpanStyle(color = Color(0xFF52C8F0))) { append("현장감") }
@@ -802,26 +799,26 @@ private fun Feedback(ui: UiState, act: Actions) {
         }, fontSize = 34.sp, fontWeight = FontWeight.ExtraBold)
         Spacer(Modifier.height(8.dp))
         Text("짧은 평가로 다음 청취를 더 편안하게 만들어 주세요", fontSize = 17.sp, color = TextLo)
-        Spacer(Modifier.height(30.dp))
+        Spacer(Modifier.height(36.dp))
         when {
             ui.mode != Mode.PARKED -> Text("정차 후 평가할 수 있어요", color = Amber, fontSize = 22.sp)
             ui.feedbackSaved -> Text("평가를 저장했어요. 들려주셔서 고마워요.", color = Mint, fontSize = 22.sp, fontWeight = FontWeight.Bold)
             else -> Column(Modifier.widthIn(max = 760.dp)) {
                 items.forEach { (k, label) ->
-                    Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth().padding(vertical = 6.dp).clip(RoundedCornerShape(20.dp)).background(CardHi).padding(horizontal = 24.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(label, fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                         (1..5).forEach { n ->
-                            Text("★", fontSize = 44.sp, color = if ((scores[k] ?: 0) >= n) Yellow else Line, modifier = Modifier.padding(horizontal = 4.dp).clickable { scores[k] = n })
+                            Text("★", fontSize = 44.sp, color = if ((scores[k] ?: 0) >= n) Yellow else TextLo.copy(alpha = 0.65f), modifier = Modifier.padding(horizontal = 4.dp).clickable { scores[k] = n })
                         }
                     }
                 }
                 Spacer(Modifier.height(18.dp))
-                PrimaryButton("평가 보내기", Modifier.fillMaxWidth(), enabled = scores.size == items.size) { act.saveFeedback(scores.toMap()) }
+                PrimaryButton("평가 저장하기", Modifier.fillMaxWidth(), enabled = scores.size == items.size) { act.saveFeedback(scores.toMap()) }
             }
         }
-        Spacer(Modifier.height(22.dp))
+        Spacer(Modifier.height(28.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            SecondaryButton("↺  다시 듣기") { act.replay() }
+            SecondaryButton("다시 듣기") { act.replay() }
             SecondaryButton("설정으로") { act.openSetup() }
         }
     }
@@ -831,7 +828,7 @@ private fun Feedback(ui: UiState, act: Actions) {
 @Composable
 private fun PanelCard(modifier: Modifier = Modifier, padding: Dp = 22.dp, content: @Composable ColumnScope.() -> Unit) {
     Column(
-        modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Brush.verticalGradient(listOf(Card, Color(0xFF111720)))).border(1.dp, Line.copy(alpha = 0.6f), RoundedCornerShape(24.dp)).padding(padding),
+        modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Brush.verticalGradient(listOf(Card, Color(0xFF111720)))).padding(padding),
         content = content,
     )
 }
