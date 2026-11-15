@@ -77,16 +77,16 @@ import kotlin.math.exp
 import kotlin.math.sin
 
 // ---- 디자인 토큰(시연 영상 기준) ----
-private val Bg = Color(0xFF0B0E14)
-private val Card = Color(0xFF151922)
-private val CardHi = Color(0xFF1C212C)
-private val Line = Color(0xFF262C3A)
+private val Bg = Color(0xFF090C12)
+private val Card = Color(0xFF141A24)
+private val CardHi = Color(0xFF202938)
+private val Line = Color(0xFF2A3444)
 private val TextHi = Color(0xFFF4F6FA)
 private val TextMid = Color(0xFFC3C9D6)
-private val TextLo = Color(0xFF858EA3)
+private val TextLo = Color(0xFF9AA8BC)
 private val Mint = Color(0xFF2ED3A0)
 private val MintBg = Color(0xFF10291F)
-private val Blue = Color(0xFF2F6BFF)
+private val Blue = Color(0xFF397CFF)
 private val Purple = Color(0xFF7752E0)
 private val Orange = Color(0xFFE8763C)
 private val Red = Color(0xFFF0424F)
@@ -113,11 +113,13 @@ fun App(game: Game, engine: CueEngine, ui: UiState, act: Actions) {
             Header(ui, act)
             Spacer(Modifier.height(16.dp))
             Box(Modifier.weight(1f)) {
-                when (ui.screen) {
+                if (ui.mode != Mode.PARKED || !ui.modeKnown) {
+                    DrivingView(game, ui, act)
+                } else when (ui.screen) {
                     Screen.SETUP -> Setup(game, ui, act)
                     Screen.PLAYER ->
                         if (ui.mode == Mode.PARKED && ui.prefs.immersiveOnPark) Immersive(game, engine, ui, act, scene, idle)
-                        else DrivingView(game, ui, act, idle)
+                        else DrivingView(game, ui, act)
                     Screen.FEEDBACK -> Feedback(ui, act)
                 }
             }
@@ -156,7 +158,7 @@ private fun Header(ui: UiState, act: Actions) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Logo(Modifier.size(40.dp))
         Spacer(Modifier.width(14.dp))
-        Text("STADIUM LIVE", fontSize = 23.sp, fontWeight = FontWeight.ExtraBold)
+        Text("STADIUM LIVE", letterSpacing = 1.sp, fontSize = 21.sp, fontWeight = FontWeight.ExtraBold)
         Text("   ›   ", fontSize = 18.sp, color = TextLo)
         Text(page, fontSize = 19.sp, color = TextMid, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.weight(1f))
@@ -181,7 +183,7 @@ private fun Header(ui: UiState, act: Actions) {
             }
             else -> Tag("● 정차 중", Mint)
         }
-        if (ui.screen == Screen.PLAYER) {
+        if (ui.screen == Screen.PLAYER && ui.mode == Mode.PARKED && ui.modeKnown) {
             Spacer(Modifier.width(8.dp))
             GhostButton("설정", enabled = ui.mode == Mode.PARKED, onClick = act.openSetup)
         }
@@ -194,8 +196,12 @@ private fun Setup(game: Game, ui: UiState, act: Actions) {
     val parked = ui.mode == Mode.PARKED
     var p by remember(ui.prefs) { mutableStateOf(ui.prefs) }
     Column(Modifier.fillMaxSize()) {
+        Text("오늘의 경기를, 내 차 안에서", fontSize = 36.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-1).sp)
+        Spacer(Modifier.height(8.dp))
+        Text("응원하는 팀을 고르고 나에게 맞는 현장감을 설정하세요", fontSize = 18.sp, color = TextLo)
+        Spacer(Modifier.height(28.dp))
         Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-            Column(Modifier.weight(1.2f).fillMaxHeight()) {
+            Column(Modifier.weight(1.05f).fillMaxHeight()) {
                 Label("오늘의 경기")
                 SelectCard(selected = true, enabled = true, modifier = Modifier.fillMaxWidth().weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -211,7 +217,7 @@ private fun Setup(game: Game, ui: UiState, act: Actions) {
                         Shield(game.away, Modifier.size(42.dp, 48.dp), 20f)
                     }
                     Spacer(Modifier.weight(1f))
-                    Text("9회말 2사 만루 · 1분 7초 하이라이트", fontSize = 15.sp, color = TextLo)
+                    Text("9회말, 2사 만루\n승부를 바꾸는 67초", fontSize = 15.sp, color = TextLo)
                 }
                 Spacer(Modifier.height(14.dp))
                 SelectCard(selected = false, enabled = false, modifier = Modifier.fillMaxWidth().weight(1f)) {
@@ -220,7 +226,7 @@ private fun Setup(game: Game, ui: UiState, act: Actions) {
                         Text("  다음 녹화 샘플", fontSize = 16.sp, color = TextLo)
                     }
                     Spacer(Modifier.weight(1f))
-                    Text("새 경기 주석이 추가되면 여기에 표시돼요", fontSize = 17.sp, color = TextLo)
+                    Text("다음 경기를 준비하고 있어요", fontSize = 17.sp, color = TextLo)
                     Spacer(Modifier.weight(1f))
                 }
             }
@@ -244,7 +250,7 @@ private fun Setup(game: Game, ui: UiState, act: Actions) {
                     }
                 }
             }
-            Column(Modifier.weight(1.1f).fillMaxHeight()) {
+            Column(Modifier.weight(1.15f).fillMaxHeight()) {
                 val levels = listOf("끄기" to 0f, "약" to 0.3f, "중" to 0.7f, "강" to 1f)
                 val idx = if (!p.effectsOn) 0 else levels.drop(1).indexOfFirst { abs(it.second - p.intensity) < 0.16f }.let { if (it < 0) 2 else it + 1 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -271,9 +277,9 @@ private fun Setup(game: Game, ui: UiState, act: Actions) {
                 ) {
                     ToggleRow("주행 중 · 해설 중심", "효과 약하게 · 점수와 이닝만 표시", true, false) {}
                     Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
-                    ToggleRow("정차 시 · 몰입 모드 제안", "정차 확인 후 강한 연출 · 상세 화면", p.immersiveOnPark, parked) { p = p.copy(immersiveOnPark = it) }
+                    ToggleRow("정차 시 몰입 모드", "정차 확인 후 강한 연출 · 상세 화면", p.immersiveOnPark, parked) { p = p.copy(immersiveOnPark = it) }
                     Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
-                    ToggleRow("실내 조명 · 송풍 연출", "심박·타격·득점에 맞춰 앰비언트 조명과 바람이 움직여요", p.cabinOn, parked) { p = p.copy(cabinOn = it) }
+                    ToggleRow("차 안에서도 느끼는 현장감", "경기에 맞춰 조명과 바람이 움직여요", p.cabinOn, parked) { p = p.copy(cabinOn = it) }
                 }
             }
         }
@@ -284,12 +290,12 @@ private fun Setup(game: Game, ui: UiState, act: Actions) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             InfoIcon()
             Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                Text("관중·응원 음원은 직접 제작했거나 이용 권한을 확보한 음원만 사용해요.", fontSize = 15.sp, color = TextMid)
-                Text("실제 선수의 생체 정보는 수집·사용하지 않아요.", fontSize = 15.sp, color = TextMid)
+                Text("정차하면 현장감 있게, 주행하면 해설에 집중해요.", fontSize = 15.sp, color = TextMid)
+                Text("제작·이용 허가 음원 사용 · 실제 선수 생체 정보 미사용", fontSize = 15.sp, color = TextMid)
             }
-            SecondaryButton(if (ui.playing && ui.screen == Screen.SETUP) "■  미리 듣기 중" else "◀  미리 듣기") { act.savePrefs(p); act.preview() }
+            SecondaryButton(if (ui.playing && ui.screen == Screen.SETUP) "■  미리 듣기 중" else "미리 듣기") { act.savePrefs(p); act.preview() }
             Spacer(Modifier.width(14.dp))
-            PrimaryButton(if (parked) "설정 저장 · 출발 시 자동 적용" else "저장된 설정으로 듣기", Modifier.width(380.dp)) {
+            PrimaryButton(if (parked) "이 경기 듣기" else "저장된 설정으로 듣기", Modifier.width(380.dp)) {
                 if (parked) act.savePrefs(p)
                 act.start()
             }
@@ -300,13 +306,13 @@ private fun Setup(game: Game, ui: UiState, act: Actions) {
 @Composable
 private fun SelectCard(selected: Boolean, enabled: Boolean, modifier: Modifier, onClick: () -> Unit = {}, content: @Composable ColumnScope.() -> Unit) {
     Box(
-        modifier.clip(RoundedCornerShape(20.dp))
-            .background(if (selected) Brush.verticalGradient(listOf(Color(0xFF123227), Color(0xFF0F1D1B))) else Brush.verticalGradient(listOf(Card, Card)))
-            .border(if (selected) 2.dp else 1.dp, if (selected) Mint else Line, RoundedCornerShape(20.dp))
+        modifier.clip(RoundedCornerShape(24.dp))
+            .background(if (selected) Brush.verticalGradient(listOf(Color(0xFF16332F), Color(0xFF142623))) else Brush.verticalGradient(listOf(Card, Card)))
+            .border(1.dp, if (selected) Mint.copy(alpha = 0.5f) else Line.copy(alpha = 0.35f), RoundedCornerShape(24.dp))
             .clickable(enabled = enabled, onClick = onClick),
     ) {
         Column(Modifier.fillMaxSize().padding(22.dp), content = content)
-        Box(Modifier.align(Alignment.TopEnd).padding(16.dp)) { CheckCircle(selected) }
+        if (enabled) Box(Modifier.align(Alignment.TopEnd).padding(16.dp)) { CheckCircle(selected) }
     }
 }
 
@@ -355,71 +361,33 @@ private fun ToggleRow(title: String, sub: String, on: Boolean, enabled: Boolean,
 
 // ---------------- 02 주행 중: 해설 중심 ----------------
 @Composable
-private fun DrivingView(game: Game, ui: UiState, act: Actions, idle: State<Long>) {
+private fun DrivingView(game: Game, ui: UiState, act: Actions) {
     val b = game.boardAt(ui.position)
     Column(
-        Modifier.fillMaxSize().clip(RoundedCornerShape(24.dp)).background(Card).border(1.dp, Line, RoundedCornerShape(24.dp)).padding(28.dp),
+        Modifier.fillMaxSize().clip(RoundedCornerShape(32.dp)).background(Card).padding(48.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Spacer(Modifier.weight(0.6f))
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Spacer(Modifier.weight(1f))
+        Text(if (b.final) "경기 종료" else b.inning, color = TextMid, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(28.dp))
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(48.dp)) {
             TeamBig(game.away)
-            Spacer(Modifier.width(48.dp))
-            ScoreNumber(b.away, 132.sp)
-            Text("  :  ", fontSize = 90.sp, color = TextLo, fontWeight = FontWeight.Bold)
-            ScoreNumber(b.home, 132.sp)
-            Spacer(Modifier.width(48.dp))
+            Text("${b.away}", fontSize = 152.sp, fontWeight = FontWeight.ExtraBold)
+            Text(":", fontSize = 64.sp, color = TextLo)
+            Text("${b.home}", fontSize = 152.sp, fontWeight = FontWeight.ExtraBold)
             TeamBig(game.home)
         }
-        Spacer(Modifier.height(10.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("${b.inning} · ${b.outs}아웃 · B${b.balls} S${b.strikes}", fontSize = 32.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.width(14.dp))
-            Bases(b.bases, 40.dp)
-        }
-        Spacer(Modifier.weight(0.5f))
-        val status = when {
-            ui.focus == Focus.PAUSED_BY_OTHER -> "통화 중 · 일시정지"
-            ui.focus == Focus.DUCKED -> "내비 안내 · 중계 음량 낮춤"
-            ui.playing -> "해설 재생 중"
-            else -> "일시정지"
-        }
-        val pct = (ui.position * 100 / game.durationMs).toInt().coerceIn(0, 100)
+        Spacer(Modifier.weight(1f))
         Row(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(CardHi).border(1.dp, Line, RoundedCornerShape(18.dp)).padding(horizontal = 26.dp, vertical = 22.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            Modifier.width(460.dp).height(104.dp).clip(RoundedCornerShape(28.dp)).background(Blue)
+                .clickable { if (ui.screen == Screen.SETUP) act.start() else act.toggle() },
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center,
         ) {
-            Canvas(Modifier.size(110.dp, 26.dp)) {
-                val t = idle.value / 1000f
-                for (i in 0 until 11) {
-                    val h = if (ui.playing && ui.focus != Focus.PAUSED_BY_OTHER) size.height * (0.25f + 0.75f * abs(sin(t * 3f + i * 0.7f))) else size.height * 0.2f
-                    drawRoundRect(TextLo, Offset(i * size.width / 11, (size.height - h) / 2), Size(size.width / 11 - 5f, h), CornerRadius(4f))
-                }
-            }
-            Spacer(Modifier.width(22.dp))
-            Column(Modifier.weight(1f)) {
-                Text(status, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = if (ui.focus == Focus.PAUSED_BY_OTHER || ui.focus == Focus.DUCKED) Amber else TextHi)
-                Spacer(Modifier.height(10.dp))
-                Box(Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(50)).background(Line)) {
-                    Box(Modifier.fillMaxWidth(pct / 100f).fillMaxHeight().clip(RoundedCornerShape(50)).background(Blue))
-                }
-            }
-            Text("  $pct%", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextMid)
+            PlayIcon(ui.playing, 34.dp)
+            Spacer(Modifier.width(20.dp))
+            Text(if (ui.playing) "일시정지" else "중계 듣기", fontSize = 30.sp, fontWeight = FontWeight.Bold)
         }
-        Spacer(Modifier.height(20.dp))
-        Row(Modifier.fillMaxWidth().height(130.dp), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-            BigTile(Modifier.weight(1f), onClick = act.toggle) { PlayIcon(ui.playing, 40.dp) }
-            BigTile(Modifier.weight(1f), onClick = { act.savePrefs(ui.prefs.copy(effectsOn = !ui.prefs.effectsOn)) }) {
-                Text("효과", fontSize = 16.sp, color = TextLo)
-                Text(if (ui.prefs.effectsOn) "약하게" else "끔", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = Mint)
-            }
-            Box(
-                Modifier.weight(1f).fillMaxHeight().drawBehind {
-                    drawRoundRect(Line, style = Stroke(4f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(18f, 12f))), cornerRadius = CornerRadius(26.dp.toPx()))
-                },
-                contentAlignment = Alignment.Center,
-            ) { Text("🔒  몰입 모드 · 정차 후", fontSize = 22.sp, color = TextLo, fontWeight = FontWeight.SemiBold) }
-        }
+        Spacer(Modifier.height(36.dp))
     }
 }
 
@@ -445,7 +413,7 @@ private fun BigTile(modifier: Modifier, onClick: () -> Unit, content: @Composabl
 private fun Immersive(game: Game, engine: CueEngine, ui: UiState, act: Actions, s: SceneInput, idle: State<Long>) {
     val ms = ui.position
     Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-        Column(Modifier.width(430.dp).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(Modifier.width(390.dp).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             ScoreCard(game, s.board, ui.prefs)
             BatterCard(engine, s.board, ms, s, Modifier)
             MixerCard(engine, ui, s, Modifier.weight(1f))
@@ -501,7 +469,7 @@ private fun ScoreCard(game: Game, b: Board, prefs: Prefs) {
                 Text("  ${t.name}", fontSize = 23.sp, fontWeight = FontWeight.Bold)
                 if (t.id == game.home.id && !b.final) Text("  ● 공격", fontSize = 13.sp, color = Mint, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
-                ScoreNumber(sc, 38.sp)
+                ScoreNumber(sc, 48.sp)
             }
         }
         Spacer(Modifier.height(10.dp))
@@ -524,7 +492,7 @@ private fun BatterCard(engine: CueEngine, b: Board, ms: Long, s: SceneInput, mod
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(30.dp).clip(CircleShape).background(Blue), contentAlignment = Alignment.Center) { Text("4", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold) }
             Text("  ${b.batter}", fontSize = 21.sp, fontWeight = FontWeight.Bold)
-            Text("   블루윙스 · 타율 .318", fontSize = 15.sp, color = TextLo)
+            Text("   타율 .318", fontSize = 15.sp, color = TextLo)
         }
         Spacer(Modifier.height(16.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -555,7 +523,7 @@ private fun BatterCard(engine: CueEngine, b: Board, ms: Long, s: SceneInput, mod
                 Text(if (afterHit) (if (s.cheer != null) "재생" else "대기") else breath, fontSize = 24.sp, fontWeight = FontWeight.Bold)
             }
         }
-        Canvas(Modifier.fillMaxWidth().height(130.dp).padding(vertical = 12.dp)) {
+        Canvas(Modifier.fillMaxWidth().height(88.dp).padding(vertical = 12.dp)) {
             for (i in 0..24) drawLine(Color.White.copy(alpha = 0.04f), Offset(size.width * i / 24, 0f), Offset(size.width * i / 24, size.height), 1f)
             val mid = size.height * 0.55f
             if (afterHit) {
@@ -595,7 +563,7 @@ private fun CabinRow(c: CabinState, enabled: Boolean) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("차량 실내 연출", fontSize = 15.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             Text(
-                when { !enabled -> "꺼짐"; !c.ready -> "연결 중"; c.light || c.fan -> "Vehicle SDK 반영"; else -> c.note },
+                when { !enabled -> "꺼짐"; !c.ready -> "연결 중"; c.light || c.fan -> "연출 중"; else -> c.note },
                 fontSize = 12.sp, color = if (enabled && (c.light || c.fan)) Mint else TextLo, fontWeight = FontWeight.Bold,
             )
         }
@@ -642,9 +610,9 @@ private fun MixerCard(engine: CueEngine, ui: UiState, s: SceneInput, modifier: M
     )
     PanelCard(modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("연출 레이어", fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            Text("지금 들리는 현장감", fontSize = 17.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.weight(1f))
-            Text(if (on) "중계 위치에 맞춰 자동 믹싱" else "효과 꺼짐 · 기본 중계", fontSize = 13.sp, color = TextLo)
+            Text(if (on) "중계와 함께" else "효과 꺼짐 · 기본 중계", fontSize = 13.sp, color = TextLo)
         }
         Spacer(Modifier.height(10.dp))
         CabinRow(ui.cabin, ui.prefs.cabinOn && on)
@@ -683,7 +651,7 @@ private fun FlowStrip() {
         Triple("딱! · 공 비행음", "타격 순간 공이 왼쪽에서 오른쪽으로", Blue),
         Triple("득점 함성 · 응원가", "내 팀이면 함성, 상대면 탄성", Orange),
     )
-    Row(Modifier.fillMaxWidth().height(110.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().height(94.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
         steps.forEachIndexed { i, (t, sub, c) ->
             Row(
                 Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(18.dp)).background(Card).border(1.dp, Line, RoundedCornerShape(18.dp)).padding(horizontal = 20.dp),
@@ -692,7 +660,7 @@ private fun FlowStrip() {
                 Box(Modifier.size(10.dp, 54.dp).clip(RoundedCornerShape(50)).background(c))
                 Spacer(Modifier.width(16.dp))
                 Column {
-                    Text("0${i + 1}  $t", fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                    Text("0${i + 1}  $t", fontSize = 17.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(4.dp))
                     Text(sub, fontSize = 14.sp, color = TextLo)
                 }
@@ -745,7 +713,7 @@ private fun EventQueue(game: Game, ui: UiState, act: Actions) {
     val bounds = listOf(0L to hit, hit to score, score to dur)
     val weights = listOf(0.4f, 0.19f, 0.41f)
     val colors = listOf(Purple, Blue, Orange)
-    val labels = listOf("타석 · 숨소리/심박", "타격 · 공 비행음", "득점 · 함성/응원가")
+    val labels = listOf("타석의 긴장", "타구의 순간", "득점의 환호")
     val ms = ui.position
     val seg = bounds.indexOfLast { ms >= it.first }.coerceAtLeast(0)
     val gap = 14f
@@ -772,7 +740,7 @@ private fun EventQueue(game: Game, ui: UiState, act: Actions) {
     PanelCard(padding = 20.dp) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(buildAnnotatedString {
-                append("이벤트 큐 · 미디어 기준 시각 ")
+                append("하이라이트   ")
                 withStyle(SpanStyle(fontWeight = FontWeight.ExtraBold, color = TextHi)) { append("%02d:%04.1f".format(ms / 60_000, (ms % 60_000) / 1000f)) }
             }, fontSize = 16.sp, color = TextMid)
             Spacer(Modifier.weight(1f))
@@ -828,16 +796,16 @@ private fun Feedback(ui: UiState, act: Actions) {
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
     ) {
         Text(buildAnnotatedString {
-            append("언제든 ")
-            withStyle(SpanStyle(color = Color(0xFF52C8F0))) { append("기본 중계") }
-            append("로, 듣고 난 뒤엔 짧게 평가")
+            append("오늘의 ")
+            withStyle(SpanStyle(color = Color(0xFF52C8F0))) { append("현장감") }
+            append("은 어땠나요?")
         }, fontSize = 34.sp, fontWeight = FontWeight.ExtraBold)
         Spacer(Modifier.height(8.dp))
-        Text("정차 상태에서 몰입감 · 해설 명료도 · 음량 변화 불편을 알려 주세요", fontSize = 17.sp, color = TextLo)
+        Text("짧은 평가로 다음 청취를 더 편안하게 만들어 주세요", fontSize = 17.sp, color = TextLo)
         Spacer(Modifier.height(30.dp))
         when {
             ui.mode != Mode.PARKED -> Text("정차 후 평가할 수 있어요", color = Amber, fontSize = 22.sp)
-            ui.feedbackSaved -> Text("평가가 저장됐어요. 다음 연출 강도 추천에 반영돼요.", color = Mint, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            ui.feedbackSaved -> Text("평가를 저장했어요. 들려주셔서 고마워요.", color = Mint, fontSize = 22.sp, fontWeight = FontWeight.Bold)
             else -> Column(Modifier.widthIn(max = 760.dp)) {
                 items.forEach { (k, label) ->
                     Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -863,14 +831,14 @@ private fun Feedback(ui: UiState, act: Actions) {
 @Composable
 private fun PanelCard(modifier: Modifier = Modifier, padding: Dp = 22.dp, content: @Composable ColumnScope.() -> Unit) {
     Column(
-        modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(Card).border(1.dp, Line, RoundedCornerShape(22.dp)).padding(padding),
+        modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Brush.verticalGradient(listOf(Card, Color(0xFF111720)))).border(1.dp, Line.copy(alpha = 0.6f), RoundedCornerShape(24.dp)).padding(padding),
         content = content,
     )
 }
 
 @Composable
 private fun Label(text: String, modifier: Modifier = Modifier) {
-    Text(text, fontSize = 16.sp, color = TextMid, fontWeight = FontWeight.SemiBold, modifier = modifier.padding(bottom = 10.dp))
+    Text(text, fontSize = 18.sp, color = TextHi, fontWeight = FontWeight.Bold, modifier = modifier.padding(bottom = 14.dp))
 }
 
 @Composable

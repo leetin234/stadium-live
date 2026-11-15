@@ -101,12 +101,14 @@ fun StadiumView(modifier: Modifier, s: SceneInput, idle: State<Long>) {
         fun len(v: Float) = v * sc
 
         drawImage(img, dstOffset = IntOffset(dx.toInt(), dy.toInt()), dstSize = IntSize((Field.W * sc).toInt(), (Field.H * sc).toInt()))
+        // Quiet the stands so runners and the ball remain the visual focus.
+        drawRect(Brush.verticalGradient(listOf(Color(0xFF08121E).copy(alpha = 0.42f), Color.Transparent, Color(0xFF070C14).copy(alpha = 0.25f))))
         val now = idle.value / 1000f
 
         // 조명이 아주 느리게 숨 쉬듯.
         listOf(270f to 30f, 590f to -20f, 1010f to -20f, 1330f to 30f).forEachIndexed { i, (x, y) ->
             val c = p(Offset(x, y))
-            val a = 0.10f + 0.06f * sin(now * 1.3f + i)
+            val a = 0.05f + 0.025f * sin(now * 1.3f + i)
             drawCircle(Brush.radialGradient(listOf(Color.White.copy(alpha = a), Color.Transparent), center = c, radius = len(220f)), len(220f), c, blendMode = BlendMode.Plus)
         }
 
@@ -162,7 +164,7 @@ fun StadiumView(modifier: Modifier, s: SceneInput, idle: State<Long>) {
                 moveTo(p(Field.home).x, p(Field.home).y)
                 for (i in 1..n) { val o = p(Field.ball(i / steps.toFloat())); lineTo(o.x, o.y) }
             }
-            drawPath(trail, Color.White.copy(alpha = 0.18f), style = Stroke(len(16f), cap = StrokeCap.Round))
+            drawPath(trail, Color(0xFF71C9FF).copy(alpha = 0.18f), style = Stroke(len(12f), cap = StrokeCap.Round))
             drawPath(trail, Color.White.copy(alpha = 0.92f), style = Stroke(len(4.5f), cap = StrokeCap.Round))
             val ground = p(Field.home + (Field.landing - Field.home) * fp)
             val height = sin(PI.toFloat() * fp)
@@ -201,7 +203,7 @@ fun DrawScope.confetti(seed: Long, dt: Long, team: Color) {
     val r = Random(seed)
     val t = dt / 1000f
     val palette = listOf(team, Color.White, Color(0xFFFFD34D), team.lighten(0.35f))
-    repeat(150) { i ->
+    repeat(90) { i ->
         val x0 = r.nextFloat() * size.width
         val vx = (r.nextFloat() - 0.5f) * 160f
         val vy = -320f - r.nextFloat() * 520f
@@ -234,12 +236,9 @@ fun Shield(team: Team, modifier: Modifier, letterSize: Float) {
                 cubicTo(w * 0.12f, h * 0.1f, w * 0.3f, h * 0.08f, w * 0.5f, 0f)
                 close()
             }
-            drawPath(path, Brush.verticalGradient(listOf(c.lighten(0.22f), c, c.darken(0.35f))))
-            drawPath(path, Color.White.copy(alpha = 0.9f), style = Stroke(w * 0.04f))
-            // 안쪽 테두리.
-            val inner = Path().apply { addPath(path) }
-            drawPath(inner, Color.White.copy(alpha = 0.22f), style = Stroke(w * 0.16f))
-            drawRoundRect(Color.White.copy(alpha = 0.14f), Offset(w * 0.12f, h * 0.14f), Size(w * 0.76f, h * 0.22f), CornerRadius(w * 0.1f))
+            drawPath(path, c.darken(0.2f))
+            drawPath(path, c.lighten(0.3f).copy(alpha = 0.65f), style = Stroke(w * 0.025f))
+
         }
         Text(team.id, color = Color.White, fontSize = letterSize.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier)
     }
