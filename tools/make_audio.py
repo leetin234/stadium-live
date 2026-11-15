@@ -314,7 +314,8 @@ SCRIPT = [
     ("cue", {"type": "HIT", "label": "타격", "flightMs": 2600, "direction": "RIGHT_CENTER"}),
     ("cue", {"type": "TENSION", "bpm": 0, "breath": 0}),
     ("state", {"bpm": 0, "hit": True}),
-    ("gap", 0.25),
+    # 해설이 타격음과 거의 동시에 터져야 화면의 공 출발과 맞게 들린다.
+    ("gap", 0.05),
     ("say", "쳤습니다! 우중간! 우중간을 가릅니다!", 0.2),
     ("cue", {"type": "SCORE", "team": "W", "label": "3루 주자 홈인"}),
     ("state", {"home": 4, "bases": [1, 1, 0]}),

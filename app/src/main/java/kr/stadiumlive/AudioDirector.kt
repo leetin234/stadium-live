@@ -90,7 +90,8 @@ class AudioDirector(private val ctx: Context, game: Game) {
             if (playing) {
                 val catchUp = SystemClock.elapsedRealtime() - lastUserSeek > 1_500
                 if (now - prev > CueEngine.MAX_STEP_MS) Log.w(TAG, "position jump $prev→$now catchUp=$catchUp")
-                engine.shots(prev, now, mode, prefs, catchUp).forEach { fire(it, now) }
+                // 효과음(SoundPool)은 중계 음원보다 출력이 늦게 나오므로 그만큼 앞당겨 낸다.
+                engine.shots(prev + FX_LEAD_MS, now + FX_LEAD_MS, mode, prefs, catchUp).forEach { fire(it, now) }
             }
             prev = now
             wasPlaying = playing
@@ -251,6 +252,8 @@ class AudioDirector(private val ctx: Context, game: Game) {
     companion object {
         const val TAG = "StadiumAudio"
         const val TICK_MS = 25L
+        /** Pleos 에뮬레이터에서 잰 SoundPool 출력 지연(타격음 vs 중계 음원 약 120ms). */
+        const val FX_LEAD_MS = 110L
         val SOUNDS = listOf("heartbeat", "breath", "crack", "foul", "glove", "whoosh", "roar", "groan", "chant_W", "chant_F")
     }
 }
