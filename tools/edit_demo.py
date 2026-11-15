@@ -5,11 +5,13 @@
 실행: tools/.venv/bin/python -I tools/edit_demo.py
 """
 import subprocess
+import sys
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 DEMO = ROOT / "demo"
 WORK = DEMO / "edit"
 FONT = ROOT / "app" / "src" / "main" / "res" / "font"
@@ -169,7 +171,12 @@ def main():
     fc.append(f"[{cur}][ins]overlay={INSET_XY[0]}:{INSET_XY[1]}:enable='between(t,{ia},{ib})'[vin]")
     cur = "vin"
     fc.append(f"[{cur}]format=yuv420p[vout]")
-    fc.append("[0:a]loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000[aout]")
+    # 에뮬레이터 녹화기는 시작 직후 무음 구간을 건너뛰어 소리가 화면보다 앞당겨진다. 재서 되돌린다.
+    from check_sync import measure
+    video_off, audio_off, *_ = measure(DEMO / "raw.webm")
+    delay = max(0, round((video_off - audio_off) * 1000))
+    print(f"audio delay {delay}ms")
+    fc.append(f"[0:a]adelay={delay}:all=1,loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000[aout]")
     main_mp4 = WORK / "main.mp4"
     run(["ffmpeg", "-v", "error", "-y", *inputs, "-filter_complex", ";".join(fc), "-map", "[vout]", "-map", "[aout]",
          "-r", "30", "-c:v", "libx264", "-preset", "medium", "-crf", "19", "-c:a", "aac", "-b:a", "192k", "-t", "101", str(main_mp4)])

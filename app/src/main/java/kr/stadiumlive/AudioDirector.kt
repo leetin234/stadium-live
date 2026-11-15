@@ -80,7 +80,7 @@ class AudioDirector(private val ctx: Context, game: Game) {
         .setOnAudioFocusChangeListener(::onFocusChange, main)
         .build()
 
-    private val duck get() = if (focus == Focus.DUCKED) 0.2f else 1f
+    private val duck get() = if (focus == Focus.DUCKED) DUCK_FX else 1f
 
     private val tick = object : Runnable {
         override fun run() {
@@ -183,7 +183,7 @@ class AudioDirector(private val ctx: Context, game: Game) {
 
     private fun setFocus(f: Focus) {
         focus = f
-        player.volume = if (f == Focus.DUCKED) 0.3f else 1f
+        player.volume = if (f == Focus.DUCKED) DUCK_BROADCAST else 1f
         onFocus(f)
     }
 
@@ -254,6 +254,9 @@ class AudioDirector(private val ctx: Context, game: Game) {
         const val TICK_MS = 25L
         /** Pleos 에뮬레이터에서 잰 SoundPool 출력 지연(타격음 vs 중계 음원 약 120ms). */
         const val FX_LEAD_MS = 110L
+        /** 내비 안내 중 중계는 약 -20dB, 효과음은 거의 들리지 않게 낮춰 안내 음성이 확실히 앞에 서게 한다. */
+        const val DUCK_BROADCAST = 0.1f
+        const val DUCK_FX = 0.06f
         val SOUNDS = listOf("heartbeat", "breath", "crack", "foul", "glove", "whoosh", "roar", "groan", "chant_W", "chant_F")
     }
 }
